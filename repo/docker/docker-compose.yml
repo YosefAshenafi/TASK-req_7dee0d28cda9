@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: fulfillops-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: fulfillops
@@ -22,7 +21,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: fulfillops-app
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://fulfillops:${DB_PASSWORD:-fulfillops_dev}@db:5432/fulfillops?sslmode=disable
