@@ -1,0 +1,18 @@
+-- Drop all tables in reverse FK dependency order
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS job_run_history CASCADE;
+DROP TABLE IF EXISTS blackout_dates CASCADE;
+DROP TABLE IF EXISTS system_settings CASCADE;
+DROP TABLE IF EXISTS report_exports CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS send_logs CASCADE;
+DROP TABLE IF EXISTS message_templates CASCADE;
+DROP TABLE IF EXISTS exception_events CASCADE;
+DROP TABLE IF EXISTS fulfillment_exceptions CASCADE;
+DROP TABLE IF EXISTS fulfillment_timeline CASCADE;
+DROP TABLE IF EXISTS shipping_addresses CASCADE;
+DROP TABLE IF EXISTS reservations CASCADE;
+DROP TABLE IF EXISTS fulfillments CASCADE;
+DROP TABLE IF EXISTS reward_tiers CASCADE;
+DROP TABLE IF EXISTS customers CASCADE;
+DROP TABLE IF EXISTS users CASCADE;

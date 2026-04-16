@@ -1,0 +1,97 @@
+package customers
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"fmt"
+)
+
+type CustomerFormData struct {
+	Customer *domain.Customer // nil = create
+	Phone    string // decrypted, for edit
+	Email    string
+	Address  string
+	Errors   map[string]string
+}
+
+templ CustomerForm(pctx view.PageCtx, d CustomerFormData) {
+	if d.Customer == nil {
+		@view.Layout("New Customer", pctx) {
+			@customerFormInner(d, "/customers", "Create Customer", "New Customer")
+		}
+	} else {
+		@view.Layout("Edit Customer", pctx) {
+			@customerFormInner(d, "/customers/"+d.Customer.ID.String(), "Update Customer", "Edit "+d.Customer.Name)
+		}
+	}
+}
+
+templ customerFormInner(d CustomerFormData, action string, submitLabel string, title string) {
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">{ title }</h1>
+		</div>
+		<a href="/customers" class="btn btn-secondary">← Back</a>
+	</div>
+	<div class="card" style="max-width:600px">
+		<div class="card-body">
+			<form method="POST" action={ templ.SafeURL(action) }>
+				if d.Customer != nil {
+					<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Customer.Version) }/>
+				}
+				<div class="form-group">
+					<label class="form-label required" for="name">Full Name</label>
+					<input id="name" name="name" type="text" class="form-control"
+						value={ customerName(d.Customer) } required/>
+					if d.Errors["name"] != "" {
+						<div class="form-error">{ d.Errors["name"] }</div>
+					}
+				</div>
+				<div class="form-row">
+					<div class="form-group">
+						<label class="form-label" for="phone">Phone</label>
+						<input id="phone" name="phone" type="tel" class="form-control" value={ d.Phone } placeholder="5551234567"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="email">Email</label>
+						<input id="email" name="email" type="email" class="form-control" value={ d.Email }/>
+					</div>
+				</div>
+				<div class="form-section-title" style="margin-top:8px">Address</div>
+				<div class="form-group">
+					<label class="form-label" for="address_line1">Address Line 1</label>
+					<input id="address_line1" name="address_line1" type="text" class="form-control" value={ addrField(d.Address, 0) }/>
+				</div>
+				<div class="form-group">
+					<label class="form-label" for="address_line2">Address Line 2</label>
+					<input id="address_line2" name="address_line2" type="text" class="form-control" value={ addrField(d.Address, 1) }/>
+				</div>
+				<div class="form-row-3">
+					<div class="form-group">
+						<label class="form-label" for="city">City</label>
+						<input id="city" name="city" type="text" class="form-control" value={ addrField(d.Address, 2) }/>
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="state">State</label>
+						<input id="state" name="state" type="text" class="form-control" maxlength="2" placeholder="NY" value={ addrField(d.Address, 3) }/>
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="zip_code">ZIP Code</label>
+						<input id="zip_code" name="zip_code" type="text" class="form-control" pattern="[0-9]{5}" value={ addrField(d.Address, 4) }/>
+					</div>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">{ submitLabel }</button>
+					<a href="/customers" class="btn btn-secondary">Cancel</a>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+func customerName(c *domain.Customer) string {
+	if c == nil { return "" }
+	return c.Name
+}
+
+func addrField(addr string, _ int) string { return "" }

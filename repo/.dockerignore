@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+.env.*
+*.md
+tmp/
+exports/
+backups/
+docker/encryption.key.dev
+*.key
+coverage.out
+*.test
+.idea/
+.vscode/

@@ -1,0 +1,117 @@
+package fulfillments
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+	"github.com/google/uuid"
+)
+
+type ListItem struct {
+	Fulfillment  domain.Fulfillment
+	TierName     string
+	CustomerName string
+}
+
+type ListData struct {
+	Items      []ListItem
+	Pager      view.Pagination
+	Filters    ListFilters
+	Tiers      []domain.RewardTier
+	Customers  []domain.Customer
+	CanCreate  bool
+}
+
+type ListFilters struct {
+	Status     string
+	TierID     string
+	CustomerID string
+	Type       string
+	DateFrom   string
+	DateTo     string
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Fulfillments", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Fulfillments</h1>
+				<div class="page-subtitle">Track and manage reward fulfillment</div>
+			</div>
+			if d.CanCreate {
+				<a href="/fulfillments/new" class="btn btn-primary">+ New Fulfillment</a>
+			}
+		</div>
+		<div class="card" style="margin-bottom:16px">
+			<div class="card-body">
+				<form method="GET" action="/fulfillments" class="filters-bar">
+					<select name="status" class="form-control">
+						<option value="">All Statuses</option>
+						for _, s := range allStatuses() {
+							<option value={ s } selected?={ d.Filters.Status == s }>{ s }</option>
+						}
+					</select>
+					<select name="tier_id" class="form-control">
+						<option value="">All Tiers</option>
+						for _, t := range d.Tiers {
+							<option value={ t.ID.String() } selected?={ d.Filters.TierID == t.ID.String() }>{ t.Name }</option>
+						}
+					</select>
+					<select name="type" class="form-control">
+						<option value="">All Types</option>
+						<option value="PHYSICAL" selected?={ d.Filters.Type == "PHYSICAL" }>Physical</option>
+						<option value="VOUCHER" selected?={ d.Filters.Type == "VOUCHER" }>Voucher</option>
+					</select>
+					<input name="date_from" type="date" class="form-control" value={ d.Filters.DateFrom } title="From"/>
+					<input name="date_to" type="date" class="form-control" value={ d.Filters.DateTo } title="To"/>
+					<button type="submit" class="btn btn-secondary">Filter</button>
+					<a href="/fulfillments" class="btn btn-secondary">Clear</a>
+				</form>
+			</div>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Customer</th>
+							<th>Tier</th>
+							<th>Type</th>
+							<th>Status</th>
+							<th>Created</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Items) == 0 {
+							<tr><td colspan="7" style="text-align:center;padding:32px;color:#64748b">No fulfillments found.</td></tr>
+						}
+						for _, item := range d.Items {
+							<tr>
+								<td class="mono text-sm"><a href={ templ.SafeURL("/fulfillments/" + item.Fulfillment.ID.String()) }>{ item.Fulfillment.ID.String()[:8] }…</a></td>
+								<td>{ item.CustomerName }</td>
+								<td>{ item.TierName }</td>
+								<td>{ string(item.Fulfillment.Type) }</td>
+								<td>@components.FulfillmentStatusBadge(item.Fulfillment.Status)</td>
+								<td class="text-sm text-muted">{ item.Fulfillment.CreatedAt.Format("Jan 2, 2006") }</td>
+								<td><a href={ templ.SafeURL("/fulfillments/" + item.Fulfillment.ID.String()) } class="btn btn-xs btn-secondary">View</a></td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
+
+func allStatuses() []string {
+	return []string{"DRAFT","READY_TO_SHIP","SHIPPED","DELIVERED","VOUCHER_ISSUED","ON_HOLD","COMPLETED","CANCELED"}
+}
+
+var _ = fmt.Sprintf
+var _ = uuid.UUID{}

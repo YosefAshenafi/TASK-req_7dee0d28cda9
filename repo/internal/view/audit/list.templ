@@ -1,0 +1,132 @@
+package audit
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+	"encoding/json"
+)
+
+type ListData struct {
+	Logs        []domain.AuditLog
+	Pager       view.Pagination
+	TableFilter string
+	OpFilter    string
+	RecordQ     string
+	DateFrom    string
+	DateTo      string
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Audit Log", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Audit Log</h1>
+				<div class="page-subtitle">Append-only compliance trail</div>
+			</div>
+		</div>
+		<div class="card" style="margin-bottom:16px">
+			<div class="card-body">
+				<form method="GET" action="/audit" class="filters-bar">
+					<select name="table_name" class="form-control">
+						<option value="">All Tables</option>
+						<option value="fulfillments" selected?={ d.TableFilter == "fulfillments" }>Fulfillments</option>
+						<option value="reward_tiers" selected?={ d.TableFilter == "reward_tiers" }>Reward Tiers</option>
+						<option value="customers" selected?={ d.TableFilter == "customers" }>Customers</option>
+						<option value="users" selected?={ d.TableFilter == "users" }>Users</option>
+					</select>
+					<select name="operation" class="form-control">
+						<option value="">All Operations</option>
+						<option value="INSERT" selected?={ d.OpFilter == "INSERT" }>INSERT</option>
+						<option value="UPDATE" selected?={ d.OpFilter == "UPDATE" }>UPDATE</option>
+						<option value="DELETE" selected?={ d.OpFilter == "DELETE" }>DELETE</option>
+					</select>
+					<input name="record_id" type="text" class="form-control" placeholder="Record ID…" value={ d.RecordQ }/>
+					<input name="date_from" type="date" class="form-control" value={ d.DateFrom }/>
+					<input name="date_to" type="date" class="form-control" value={ d.DateTo }/>
+					<button type="submit" class="btn btn-secondary">Filter</button>
+				</form>
+			</div>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Table</th>
+							<th>Record ID</th>
+							<th>Operation</th>
+							<th>Performed By</th>
+							<th>IP</th>
+							<th>Time</th>
+							<th>Diff</th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Logs) == 0 {
+							<tr><td colspan="7" style="text-align:center;padding:32px;color:#64748b">No audit entries found.</td></tr>
+						}
+						for _, l := range d.Logs {
+							<tr>
+								<td class="text-sm">{ l.TableName }</td>
+								<td class="mono text-sm">
+									if l.RecordID != nil {
+										{ l.RecordID.String()[:8] }…
+									}
+								</td>
+								<td>
+									switch l.Operation {
+									case "INSERT":
+										<span class="badge badge-green">INSERT</span>
+									case "UPDATE":
+										<span class="badge badge-blue">UPDATE</span>
+									case "DELETE":
+										<span class="badge badge-red">DELETE</span>
+									default:
+										<span class="badge badge-gray">{ l.Operation }</span>
+									}
+								</td>
+								<td class="text-sm">
+									if l.PerformedBy != nil {
+										{ l.PerformedBy.String()[:8] }…
+									}
+								</td>
+								<td class="mono text-sm text-muted">
+									if l.IPAddress != nil {
+										{ *l.IPAddress }
+									}
+								</td>
+								<td class="text-sm text-muted">{ l.CreatedAt.Format("Jan 2, 3:04 PM") }</td>
+								<td>
+									if len(l.BeforeState) > 0 || len(l.AfterState) > 0 {
+										<details>
+											<summary>View diff</summary>
+											<div class="json-diff">{ auditDiff(l) }</div>
+										</details>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
+
+func auditDiff(l domain.AuditLog) string {
+	out := ""
+	if len(l.BeforeState) > 0 {
+		b, _ := json.MarshalIndent(json.RawMessage(l.BeforeState), "", "  ")
+		out += "BEFORE:\n" + string(b)
+	}
+	if len(l.AfterState) > 0 {
+		if out != "" { out += "\n\nAFTER:\n" } else { out = "AFTER:\n" }
+		b, _ := json.MarshalIndent(json.RawMessage(l.AfterState), "", "  ")
+		out += string(b)
+	}
+	return out
+}

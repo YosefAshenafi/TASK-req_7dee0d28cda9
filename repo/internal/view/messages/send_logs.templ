@@ -1,0 +1,91 @@
+package messages
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type SendLogsData struct {
+	Logs      []domain.SendLog
+	Pager     view.Pagination
+	DateFrom  string
+	DateTo    string
+	Recipient string
+	Channel   string
+	Status    string
+}
+
+templ SendLogs(pctx view.PageCtx, d SendLogsData) {
+	@view.Layout("Send Logs", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Send Logs</h1>
+				<div class="page-subtitle">Message delivery history</div>
+			</div>
+			<a href="/messages" class="btn btn-secondary">← Templates</a>
+		</div>
+		<div class="card" style="margin-bottom:16px">
+			<div class="card-body">
+				<form method="GET" action="/messages/send-logs" class="filters-bar">
+					<input name="date_from" type="date" class="form-control" value={ d.DateFrom } title="From"/>
+					<input name="date_to" type="date" class="form-control" value={ d.DateTo } title="To"/>
+					<input name="recipient" type="text" class="form-control" placeholder="Recipient…" value={ d.Recipient }/>
+					<select name="channel" class="form-control">
+						<option value="">All Channels</option>
+						<option value="in_app" selected?={ d.Channel == "in_app" }>In-App</option>
+						<option value="sms" selected?={ d.Channel == "sms" }>SMS</option>
+						<option value="email" selected?={ d.Channel == "email" }>Email</option>
+					</select>
+					<select name="status" class="form-control">
+						<option value="">All Statuses</option>
+						<option value="QUEUED" selected?={ d.Status == "QUEUED" }>Queued</option>
+						<option value="SENT" selected?={ d.Status == "SENT" }>Sent</option>
+						<option value="FAILED" selected?={ d.Status == "FAILED" }>Failed</option>
+						<option value="PRINTED" selected?={ d.Status == "PRINTED" }>Printed</option>
+					</select>
+					<button type="submit" class="btn btn-secondary">Filter</button>
+				</form>
+			</div>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Channel</th>
+							<th>Status</th>
+							<th>Attempts</th>
+							<th>Created</th>
+							<th>Next Retry</th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Logs) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No send logs found.</td></tr>
+						}
+						for _, l := range d.Logs {
+							<tr>
+								<td><span class="badge badge-blue">{ string(l.Channel) }</span></td>
+								<td>@components.SendLogStatusBadge(l.Status)</td>
+								<td class="text-sm text-muted">{ sendLogAttempts(l) }</td>
+								<td class="text-sm text-muted">{ l.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
+								<td class="text-sm text-muted">{ sendLogNextRetry(l) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
+
+func sendLogAttempts(l domain.SendLog) string { return fmt.Sprintf("%d", l.AttemptCount) }
+func sendLogNextRetry(l domain.SendLog) string {
+	if l.NextRetryAt == nil { return "—" }
+	return l.NextRetryAt.Format("Jan 2, 3:04 PM")
+}

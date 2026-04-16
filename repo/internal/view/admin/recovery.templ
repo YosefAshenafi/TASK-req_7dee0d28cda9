@@ -1,0 +1,113 @@
+package admin
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"time"
+)
+
+type RecoveryData struct {
+	Tiers        []domain.RewardTier
+	Customers    []domain.Customer
+	Fulfillments []domain.Fulfillment
+	Templates    []domain.MessageTemplate
+}
+
+templ Recovery(pctx view.PageCtx, d RecoveryData) {
+	@view.Layout("Recovery", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Recovery</h1>
+				<div class="page-subtitle">Restore soft-deleted records (30-day window)</div>
+			</div>
+		</div>
+		@recoverySection("Reward Tiers", "tiers", len(d.Tiers) == 0) {
+			for _, t := range d.Tiers {
+				<tr>
+					<td>{ t.Name }</td>
+					<td class="text-sm text-muted">{ deletedAtStr(t.DeletedAt) }</td>
+					<td class="text-sm">{ daysRemaining(t.DeletedAt) } days remaining</td>
+					<td>
+						<form method="POST" action={ templ.SafeURL("/tiers/" + t.ID.String() + "/restore") }>
+							<button type="submit" class="btn btn-xs btn-success">Restore</button>
+						</form>
+					</td>
+				</tr>
+			}
+		}
+		@recoverySection("Customers", "customers", len(d.Customers) == 0) {
+			for _, c := range d.Customers {
+				<tr>
+					<td>{ c.Name }</td>
+					<td class="text-sm text-muted">{ deletedAtStr(c.DeletedAt) }</td>
+					<td class="text-sm">{ daysRemaining(c.DeletedAt) } days remaining</td>
+					<td>
+						<form method="POST" action={ templ.SafeURL("/customers/" + c.ID.String() + "/restore") }>
+							<button type="submit" class="btn btn-xs btn-success">Restore</button>
+						</form>
+					</td>
+				</tr>
+			}
+		}
+		@recoverySection("Fulfillments", "fulfillments", len(d.Fulfillments) == 0) {
+			for _, f := range d.Fulfillments {
+				<tr>
+					<td class="mono text-sm">{ f.ID.String()[:8] }…</td>
+					<td class="text-sm text-muted">{ deletedAtStr(f.DeletedAt) }</td>
+					<td class="text-sm">{ daysRemaining(f.DeletedAt) } days remaining</td>
+					<td>
+						<form method="POST" action={ templ.SafeURL("/fulfillments/" + f.ID.String() + "/restore") }>
+							<button type="submit" class="btn btn-xs btn-success">Restore</button>
+						</form>
+					</td>
+				</tr>
+			}
+		}
+		@recoverySection("Message Templates", "templates", len(d.Templates) == 0) {
+			for _, t := range d.Templates {
+				<tr>
+					<td>{ t.Name }</td>
+					<td class="text-sm text-muted">{ deletedAtStr(t.DeletedAt) }</td>
+					<td class="text-sm">{ daysRemaining(t.DeletedAt) } days remaining</td>
+					<td>
+						<form method="POST" action={ templ.SafeURL("/messages/templates/" + t.ID.String() + "/restore") }>
+							<button type="submit" class="btn btn-xs btn-success">Restore</button>
+						</form>
+					</td>
+				</tr>
+			}
+		}
+	}
+}
+
+templ recoverySection(title string, _ string, empty bool) {
+	<div class="card" style="margin-bottom:16px">
+		<div class="card-header">{ title }</div>
+		if empty {
+			<div class="card-body text-muted text-sm">Nothing to recover.</div>
+		} else {
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr><th>Name / ID</th><th>Deleted At</th><th>Window</th><th></th></tr>
+					</thead>
+					<tbody>
+						{ children... }
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+func deletedAtStr(t *time.Time) string {
+	if t == nil { return "" }
+	return t.Format("Jan 2, 2006")
+}
+func daysRemaining(t *time.Time) string {
+	if t == nil { return "0" }
+	days := 30 - int(time.Since(*t).Hours()/24)
+	if days < 0 { days = 0 }
+	return fmt.Sprintf("%d", days)
+}

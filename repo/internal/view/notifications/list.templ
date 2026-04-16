@@ -1,0 +1,99 @@
+package notifications
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type ListData struct {
+	Notifications []domain.Notification
+	ShowUnread    bool
+	Pager         view.Pagination
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Notifications", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Notifications</h1>
+				<div class="page-subtitle">Your in-app messages</div>
+			</div>
+		</div>
+		<div class="filters-bar" style="margin-bottom:16px">
+			<a href="/notifications?unread=1" class={ filterTabClass(d.ShowUnread) }>Unread</a>
+			<a href="/notifications" class={ filterTabClass(!d.ShowUnread) }>All</a>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Title</th>
+							<th>Message</th>
+							<th>Received</th>
+							<th>Status</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Notifications) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No notifications.</td></tr>
+						}
+						for _, n := range d.Notifications {
+							<tr class={ notifRowClass(n) }>
+								<td style="font-weight:500">{ n.Title }</td>
+								<td class="text-sm">{ notifBody(n) }</td>
+								<td class="text-sm text-muted">{ n.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
+								<td>
+									if n.IsRead {
+										<span class="badge badge-gray">Read</span>
+									} else {
+										<span class="badge badge-blue">New</span>
+									}
+								</td>
+								<td>
+									if !n.IsRead {
+										<form method="POST" action={ templ.SafeURL("/notifications/" + n.ID.String() + "/read") }>
+											<button type="submit" class="btn btn-xs btn-secondary">Mark Read</button>
+										</form>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
+
+func filterTabClass(active bool) string {
+	if active {
+		return "btn btn-sm btn-primary"
+	}
+	return "btn btn-sm btn-secondary"
+}
+
+func notifRowClass(n domain.Notification) string {
+	if !n.IsRead {
+		return "font-weight:600"
+	}
+	return ""
+}
+
+func notifBody(n domain.Notification) string {
+	if n.Body == nil { return "" }
+	b := *n.Body
+	if len(b) > 80 {
+		return b[:80] + "…"
+	}
+	return b
+}
+
+// satisfy import
+var _ = fmt.Sprintf

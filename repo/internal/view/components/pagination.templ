@@ -1,0 +1,47 @@
+package components
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+templ Pagination(p view.Pagination) {
+	if p.TotalPages > 1 {
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+			<span class="pagination-info">
+				{ fmt.Sprintf("%d total", p.Total) }
+			</span>
+			<div class="pagination">
+				if p.Page > 1 {
+					<a href={ templ.SafeURL(pageURL(p, p.Page-1)) }>‹</a>
+				} else {
+					<span class="disabled">‹</span>
+				}
+				for i := 1; i <= p.TotalPages; i++ {
+					if i == p.Page {
+						<span class="active">{ fmt.Sprintf("%d", i) }</span>
+					} else if i == 1 || i == p.TotalPages || (i >= p.Page-2 && i <= p.Page+2) {
+						<a href={ templ.SafeURL(pageURL(p, i)) }>{ fmt.Sprintf("%d", i) }</a>
+					} else if i == p.Page-3 || i == p.Page+3 {
+						<span>…</span>
+					}
+				}
+				if p.Page < p.TotalPages {
+					<a href={ templ.SafeURL(pageURL(p, p.Page+1)) }>›</a>
+				} else {
+					<span class="disabled">›</span>
+				}
+			</div>
+		</div>
+	} else {
+		<div class="pagination-info" style="margin-top:12px">{ fmt.Sprintf("%d total", p.Total) }</div>
+	}
+}
+
+func pageURL(p view.Pagination, page int) string {
+	url := fmt.Sprintf("%s?page=%d", p.BasePath, page)
+	if p.QueryStr != "" {
+		url += "&" + p.QueryStr
+	}
+	return url
+}

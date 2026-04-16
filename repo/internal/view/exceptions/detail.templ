@@ -1,0 +1,130 @@
+package exceptions
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type ExceptionEvent struct {
+	domain.ExceptionEvent
+	ActorName string
+}
+
+type DetailData struct {
+	Exception    domain.FulfillmentException
+	Events       []ExceptionEvent
+	OpenedByName string
+	CanUpdate    bool
+}
+
+templ Detail(pctx view.PageCtx, d DetailData) {
+	@view.Layout("Exception", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Exception</h1>
+				<div class="page-subtitle">{ string(d.Exception.Type) }</div>
+			</div>
+			@components.ExceptionStatusBadge(d.Exception.Status)
+		</div>
+		<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px">
+			<div style="display:flex;flex-direction:column;gap:16px">
+				<div class="card">
+					<div class="card-header">Info</div>
+					<div class="card-body">
+						<div class="detail-item" style="margin-bottom:10px">
+							<div class="detail-label">Type</div>
+							<div class="detail-value">{ string(d.Exception.Type) }</div>
+						</div>
+						<div class="detail-item" style="margin-bottom:10px">
+							<div class="detail-label">Status</div>
+							<div class="detail-value">@components.ExceptionStatusBadge(d.Exception.Status)</div>
+						</div>
+						<div class="detail-item" style="margin-bottom:10px">
+							<div class="detail-label">Fulfillment</div>
+							<div class="detail-value"><a href={ templ.SafeURL("/fulfillments/" + d.Exception.FulfillmentID.String()) } class="mono">{ d.Exception.FulfillmentID.String()[:8] }…</a></div>
+						</div>
+						<div class="detail-item" style="margin-bottom:10px">
+							<div class="detail-label">Opened By</div>
+							<div class="detail-value">{ d.OpenedByName }</div>
+						</div>
+						<div class="detail-item">
+							<div class="detail-label">Created</div>
+							<div class="detail-value">{ d.Exception.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</div>
+						</div>
+						if d.Exception.ResolutionNote != nil {
+							<div class="divider"></div>
+							<div class="detail-label">Resolution Note</div>
+							<div style="font-size:13px;margin-top:4px">{ *d.Exception.ResolutionNote }</div>
+						}
+					</div>
+				</div>
+				if d.CanUpdate {
+					<div class="card">
+						<div class="card-header">Update Status</div>
+						<div class="card-body">
+							<form method="POST" action={ templ.SafeURL("/exceptions/" + d.Exception.ID.String() + "/status") }>
+								<div class="form-group">
+									<label class="form-label required">New Status</label>
+									<select name="status" class="form-control" required>
+										<option value="INVESTIGATING">Investigating</option>
+										<option value="RESOLVED">Resolved</option>
+										<option value="CLOSED">Closed</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">Resolution Note</label>
+									<textarea name="resolution_note" class="form-control" rows="3"></textarea>
+									<div class="text-sm text-muted" style="margin-top:3px">Required when resolving.</div>
+								</div>
+								<button type="submit" class="btn btn-primary">Update</button>
+							</form>
+						</div>
+					</div>
+				}
+			</div>
+			<div style="display:flex;flex-direction:column;gap:16px">
+				<div class="card">
+					<div class="card-header">Thread</div>
+					<div class="card-body">
+						if len(d.Events) == 0 {
+							<p class="text-muted text-sm">No events yet.</p>
+						}
+						<ul class="thread">
+							for _, ev := range d.Events {
+								<li class="thread-item">
+									<div class="thread-meta">
+										<strong>{ ev.ActorName }</strong> · { string(ev.EventType) } · { ev.CreatedAt.Format("Jan 2, 2006 3:04 PM") }
+									</div>
+									<div class="thread-body">{ ev.Content }</div>
+								</li>
+							}
+						</ul>
+					</div>
+				</div>
+				if d.CanUpdate {
+					<div class="card">
+						<div class="card-header">Add Event</div>
+						<div class="card-body">
+							<form method="POST" action={ templ.SafeURL("/exceptions/" + d.Exception.ID.String() + "/events") }>
+								<div class="form-group">
+									<label class="form-label required">Event Type</label>
+									<select name="event_type" class="form-control" required>
+										<option value="NOTE">Note</option>
+										<option value="INVESTIGATION">Investigation</option>
+										<option value="RESOLUTION">Resolution</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label required">Content</label>
+									<textarea name="content" class="form-control" rows="4" required></textarea>
+								</div>
+								<button type="submit" class="btn btn-primary">Add Event</button>
+							</form>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

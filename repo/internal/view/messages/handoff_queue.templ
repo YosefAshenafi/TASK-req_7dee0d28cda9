@@ -1,0 +1,54 @@
+package messages
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type HandoffData struct {
+	Items []domain.SendLog
+}
+
+templ HandoffQueue(pctx view.PageCtx, d HandoffData) {
+	@view.Layout("Handoff Queue", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Handoff Queue</h1>
+				<div class="page-subtitle">Pending SMS/Email items awaiting print and dispatch</div>
+			</div>
+			<a href="/messages" class="btn btn-secondary">← Templates</a>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Channel</th>
+							<th>Status</th>
+							<th>Queued</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Items) == 0 {
+							<tr><td colspan="4" style="text-align:center;padding:32px;color:#64748b">Queue is empty.</td></tr>
+						}
+						for _, item := range d.Items {
+							<tr>
+								<td><span class="badge badge-blue">{ string(item.Channel) }</span></td>
+								<td>@components.SendLogStatusBadge(item.Status)</td>
+								<td class="text-sm text-muted">{ item.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
+								<td>
+									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/print") }>
+										<button type="submit" class="btn btn-xs btn-primary">Mark as Printed</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}

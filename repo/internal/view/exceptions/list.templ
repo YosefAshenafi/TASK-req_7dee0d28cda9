@@ -1,0 +1,83 @@
+package exceptions
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type ListData struct {
+	Exceptions    []domain.FulfillmentException
+	StatusFilter  string
+	TypeFilter    string
+	FulfillmentQ  string
+	DateFrom      string
+	DateTo        string
+	Pager         view.Pagination
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Exceptions", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Exceptions</h1>
+				<div class="page-subtitle">Fulfillment issues requiring attention</div>
+			</div>
+		</div>
+		<div class="card" style="margin-bottom:16px">
+			<div class="card-body">
+				<form method="GET" action="/exceptions" class="filters-bar">
+					<select name="status" class="form-control">
+						<option value="">All Statuses</option>
+						<option value="OPEN" selected?={ d.StatusFilter == "OPEN" }>Open</option>
+						<option value="INVESTIGATING" selected?={ d.StatusFilter == "INVESTIGATING" }>Investigating</option>
+						<option value="RESOLVED" selected?={ d.StatusFilter == "RESOLVED" }>Resolved</option>
+						<option value="CLOSED" selected?={ d.StatusFilter == "CLOSED" }>Closed</option>
+					</select>
+					<select name="type" class="form-control">
+						<option value="">All Types</option>
+						<option value="OVERDUE_SHIPMENT" selected?={ d.TypeFilter == "OVERDUE_SHIPMENT" }>Overdue Shipment</option>
+						<option value="DAMAGED_ITEM" selected?={ d.TypeFilter == "DAMAGED_ITEM" }>Damaged Item</option>
+						<option value="CUSTOMER_COMPLAINT" selected?={ d.TypeFilter == "CUSTOMER_COMPLAINT" }>Customer Complaint</option>
+					</select>
+					<input name="fulfillment_id" type="text" class="form-control" placeholder="Fulfillment ID…" value={ d.FulfillmentQ }/>
+					<input name="date_from" type="date" class="form-control" value={ d.DateFrom }/>
+					<input name="date_to" type="date" class="form-control" value={ d.DateTo }/>
+					<button type="submit" class="btn btn-secondary">Filter</button>
+				</form>
+			</div>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Type</th>
+							<th>Status</th>
+							<th>Fulfillment</th>
+							<th>Opened</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Exceptions) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No exceptions found.</td></tr>
+						}
+						for _, ex := range d.Exceptions {
+							<tr>
+								<td>{ string(ex.Type) }</td>
+								<td>@components.ExceptionStatusBadge(ex.Status)</td>
+								<td><a href={ templ.SafeURL("/fulfillments/" + ex.FulfillmentID.String()) } class="mono text-sm">{ ex.FulfillmentID.String()[:8] }…</a></td>
+								<td class="text-sm text-muted">{ ex.CreatedAt.Format("Jan 2, 2006") }</td>
+								<td><a href={ templ.SafeURL("/exceptions/" + ex.ID.String()) } class="btn btn-xs btn-secondary">View</a></td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}

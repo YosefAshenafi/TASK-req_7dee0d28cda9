@@ -1,0 +1,65 @@
+package reports
+
+import (
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type WorkspaceData struct {
+	IsAdmin bool
+}
+
+templ Workspace(pctx view.PageCtx, d WorkspaceData) {
+	@view.Layout("Reports", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Reports</h1>
+				<div class="page-subtitle">Generate compliance and operations exports</div>
+			</div>
+			<a href="/reports/history" class="btn btn-secondary">Export History</a>
+		</div>
+		<div class="card" style="max-width:560px">
+			<div class="card-header">Generate Export</div>
+			<div class="card-body">
+				<form method="POST" action="/reports/exports">
+					<div class="form-group">
+						<label class="form-label required" for="report_type">Report Type</label>
+						<select id="report_type" name="report_type" class="form-control" required>
+							<option value="">Select…</option>
+							<option value="fulfillments">Fulfillments</option>
+							<option value="customers">Customers</option>
+							<option value="audit_log">Audit Log</option>
+							<option value="send_logs">Send Logs</option>
+							<option value="exceptions">Exceptions</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<div class="form-group">
+							<label class="form-label" for="date_from">Date From</label>
+							<input id="date_from" name="date_from" type="date" class="form-control"/>
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="date_to">Date To</label>
+							<input id="date_to" name="date_to" type="date" class="form-control"/>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Status Filter (comma-separated)</label>
+						<input name="status_filter" type="text" class="form-control" placeholder="COMPLETED,CANCELED"/>
+					</div>
+					if d.IsAdmin {
+						<div class="form-check">
+							<input id="include_sensitive" name="include_sensitive" type="checkbox" value="true"/>
+							<label for="include_sensitive">Include sensitive data (unmasked PII)</label>
+						</div>
+						<div class="flash flash-warning" style="margin-top:8px;font-size:12px">
+							Sensitive exports are subject to enhanced audit logging.
+						</div>
+					}
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">Generate Report</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

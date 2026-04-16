@@ -1,0 +1,76 @@
+package admin
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type UsersData struct {
+	Users []domain.User
+}
+
+templ Users(pctx view.PageCtx, d UsersData) {
+	@view.Layout("User Management", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">User Management</h1>
+			</div>
+			<a href="/admin/users/new" class="btn btn-primary">+ New User</a>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Username</th>
+							<th>Email</th>
+							<th>Role</th>
+							<th>Active</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Users) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No users found.</td></tr>
+						}
+						for _, u := range d.Users {
+							<tr>
+								<td>{ u.Username }</td>
+								<td class="text-sm text-muted">{ u.Email }</td>
+								<td>
+									switch u.Role {
+									case domain.RoleAdministrator:
+										<span class="badge badge-purple">ADMINISTRATOR</span>
+									case domain.RoleFulfillmentSpecialist:
+										<span class="badge badge-blue">SPECIALIST</span>
+									case domain.RoleAuditor:
+										<span class="badge badge-teal">AUDITOR</span>
+									default:
+										<span class="badge badge-gray">{ string(u.Role) }</span>
+									}
+								</td>
+								<td>
+									if u.IsActive {
+										<span class="badge badge-green">Active</span>
+									} else {
+										<span class="badge badge-red">Inactive</span>
+									}
+								</td>
+								<td>
+									<div class="btn-group">
+										<a href={ templ.SafeURL("/admin/users/" + u.ID.String() + "/edit") } class="btn btn-xs btn-secondary">Edit</a>
+										if u.IsActive {
+											<form method="POST" action={ templ.SafeURL("/admin/users/" + u.ID.String() + "/deactivate") } onsubmit="return confirm('Deactivate this user?')">
+												<button type="submit" class="btn btn-xs btn-danger">Deactivate</button>
+											</form>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}

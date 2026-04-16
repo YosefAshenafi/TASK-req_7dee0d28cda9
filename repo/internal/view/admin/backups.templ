@@ -1,0 +1,106 @@
+package admin
+
+import (
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type BackupEntry struct {
+	ID        string
+	CreatedAt string
+	FileSize  string
+	Status    string
+}
+
+type BackupsData struct {
+	Entries []BackupEntry
+}
+
+templ Backups(pctx view.PageCtx, d BackupsData) {
+	@view.Layout("Backup Management", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Backup Management</h1>
+				<div class="page-subtitle">Database backup and restore</div>
+			</div>
+			<form method="POST" action="/admin/backups/run" onsubmit="return confirm('Run backup now?')">
+				<button type="submit" class="btn btn-primary">Run Backup Now</button>
+			</form>
+		</div>
+		<div class="card">
+			<div class="card-header">Backup History</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Created</th>
+							<th>Size</th>
+							<th>Status</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Entries) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No backups found.</td></tr>
+						}
+						for _, b := range d.Entries {
+							<tr>
+								<td class="mono text-sm">{ b.ID }</td>
+								<td class="text-sm text-muted">{ b.CreatedAt }</td>
+								<td class="text-sm">{ b.FileSize }</td>
+								<td>
+									switch b.Status {
+									case "COMPLETED":
+										<span class="badge badge-green">COMPLETED</span>
+									case "FAILED":
+										<span class="badge badge-red">FAILED</span>
+									default:
+										<span class="badge badge-yellow">{ b.Status }</span>
+									}
+								</td>
+								<td>
+									if b.Status == "COMPLETED" {
+										<div id={ "confirm-restore-" + b.ID } class="modal-backdrop">
+											<div class="modal">
+												<div class="modal-header">Restore from Backup <button class="modal-close" onclick={ closeModalExpr(b.ID) }>×</button></div>
+												<div class="modal-body">
+													<div class="flash flash-warning">This will overwrite the current database. This action cannot be undone.</div>
+													<div class="form-check" style="margin-top:12px">
+														<input type="checkbox" id={ "integrity-" + b.ID } name="verify_integrity" required/>
+														<label for={ "integrity-" + b.ID }>Verify referential integrity after restore</label>
+													</div>
+												</div>
+												<form method="POST" action={ templ.SafeURL("/admin/backups/" + b.ID + "/restore") }>
+													<input type="hidden" name="backup_id" value={ b.ID }/>
+													<div class="modal-footer">
+														<button type="button" class="btn btn-secondary" onclick={ closeModalExpr(b.ID) }>Cancel</button>
+														<button type="submit" class="btn btn-danger">Restore Database</button>
+													</div>
+												</form>
+											</div>
+										</div>
+										<button type="button" class="btn btn-xs btn-danger"
+											onclick={ openModalExpr(b.ID) }>Restore</button>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}
+
+func openModalExpr(id string) templ.ComponentScript {
+	return templ.ComponentScript{
+		Name: "openModal",
+		Call: "openModal('confirm-restore-" + id + "')",
+	}
+}
+func closeModalExpr(id string) templ.ComponentScript {
+	return templ.ComponentScript{
+		Name: "closeModal",
+		Call: "closeModal('confirm-restore-" + id + "')",
+	}
+}

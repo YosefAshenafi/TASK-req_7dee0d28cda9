@@ -1,0 +1,64 @@
+package view
+
+import "github.com/fulfillops/fulfillops/internal/domain"
+
+templ Layout(title string, pctx PageCtx) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } | FulfillOps</title>
+			<link rel="stylesheet" href="/static/css/app.css"/>
+		</head>
+		<body>
+			<div class="app-layout">
+				<nav class="sidebar">
+					<a href="/" class="sidebar-brand">FulfillOps</a>
+					<div class="nav-section-label">Operations</div>
+					<a href="/" class="nav-item"><span class="icon">⊞</span> Dashboard</a>
+					<a href="/fulfillments" class="nav-item"><span class="icon">📦</span> Fulfillments</a>
+					<a href="/tiers" class="nav-item"><span class="icon">🎁</span> Reward Tiers</a>
+					<a href="/customers" class="nav-item"><span class="icon">👤</span> Customers</a>
+					if pctx.User.Role == domain.RoleAdministrator || pctx.User.Role == domain.RoleFulfillmentSpecialist {
+						<a href="/exceptions" class="nav-item"><span class="icon">⚠</span> Exceptions</a>
+						<a href="/messages" class="nav-item"><span class="icon">✉</span> Messages</a>
+					}
+					<a href="/notifications" class="nav-item"><span class="icon">🔔</span> Notifications</a>
+					if pctx.User.Role == domain.RoleAdministrator || pctx.User.Role == domain.RoleAuditor {
+						<div class="nav-section-label">Compliance</div>
+						<a href="/reports" class="nav-item"><span class="icon">📊</span> Reports</a>
+						<a href="/audit" class="nav-item"><span class="icon">📋</span> Audit Log</a>
+					}
+					if pctx.User.Role == domain.RoleAdministrator {
+						<div class="nav-section-label">Admin</div>
+						<a href="/settings" class="nav-item"><span class="icon">⚙</span> Settings</a>
+						<a href="/admin/users" class="nav-item"><span class="icon">👥</span> Users</a>
+						<a href="/admin/recovery" class="nav-item"><span class="icon">♻</span> Recovery</a>
+						<a href="/admin/backups" class="nav-item"><span class="icon">💾</span> Backups</a>
+						<a href="/admin/health" class="nav-item"><span class="icon">❤</span> Health</a>
+					}
+					<div class="sidebar-footer">
+						<div>{ pctx.User.Username } <span class="badge badge-blue" style="font-size:9px">{ string(pctx.User.Role) }</span></div>
+						<form method="POST" action="/auth/logout" style="margin-top:6px">
+							<button type="submit" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:12px;padding:0">Sign out</button>
+						</form>
+					</div>
+				</nav>
+				<main class="main-content">
+					if pctx.Flash != nil {
+						@flashMsg(pctx.Flash)
+					}
+					{ children... }
+				</main>
+			</div>
+			<script src="/static/js/app.js"></script>
+		</body>
+	</html>
+}
+
+templ flashMsg(f *Flash) {
+	<div class={ "flash flash-" + f.Type }>
+		{ f.Message }
+	</div>
+}

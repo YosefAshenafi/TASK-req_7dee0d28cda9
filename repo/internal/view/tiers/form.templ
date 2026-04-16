@@ -1,0 +1,125 @@
+package tiers
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type FormData struct {
+	Tier   *domain.RewardTier // nil = create
+	Errors map[string]string
+}
+
+templ Form(pctx view.PageCtx, d FormData) {
+	if d.Tier == nil {
+		@view.Layout("New Tier", pctx) {
+			@tierForm(d, "/tiers", "Create Tier", "New Reward Tier")
+		}
+	} else {
+		@view.Layout("Edit Tier", pctx) {
+			@tierForm(d, "/tiers/"+d.Tier.ID.String(), "Update Tier", "Edit "+d.Tier.Name)
+		}
+	}
+}
+
+templ tierForm(d FormData, action string, submitLabel string, title string) {
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">{ title }</h1>
+		</div>
+		<a href="/tiers" class="btn btn-secondary">← Back</a>
+	</div>
+	<div class="card" style="max-width:560px">
+		<div class="card-body">
+			<form method="POST" action={ templ.SafeURL(action) }>
+				if d.Tier != nil {
+					<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Tier.Version) }/>
+				}
+				<div class="form-group">
+					<label class="form-label required" for="name">Name</label>
+					<input id="name" name="name" type="text" class={ formInputClass(d.Errors["name"]) }
+						value={ tierFieldStr(d.Tier, "name") } required/>
+					if d.Errors["name"] != "" {
+						<div class="form-error">{ d.Errors["name"] }</div>
+					}
+				</div>
+				<div class="form-group">
+					<label class="form-label" for="description">Description</label>
+					<textarea id="description" name="description" class="form-control" rows="3">{ tierFieldStr(d.Tier, "description") }</textarea>
+				</div>
+				<div class="form-row">
+					<div class="form-group">
+						<label class="form-label required" for="inventory_count">Inventory Count</label>
+						<input id="inventory_count" name="inventory_count" type="number" min="0"
+							class={ formInputClass(d.Errors["inventory_count"]) }
+							value={ tierFieldStr(d.Tier, "inventory_count") } required/>
+						if d.Errors["inventory_count"] != "" {
+							<div class="form-error">{ d.Errors["inventory_count"] }</div>
+						}
+					</div>
+					<div class="form-group">
+						<label class="form-label required" for="purchase_limit">Purchase Limit (30 days)</label>
+						<input id="purchase_limit" name="purchase_limit" type="number" min="1"
+							class={ formInputClass(d.Errors["purchase_limit"]) }
+							value={ tierFieldStr(d.Tier, "purchase_limit") } required/>
+						if d.Errors["purchase_limit"] != "" {
+							<div class="form-error">{ d.Errors["purchase_limit"] }</div>
+						}
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="form-label required" for="alert_threshold">Alert Threshold</label>
+					<input id="alert_threshold" name="alert_threshold" type="number" min="0"
+						class={ formInputClass(d.Errors["alert_threshold"]) }
+						value={ tierFieldStr(d.Tier, "alert_threshold") } required/>
+					if d.Errors["alert_threshold"] != "" {
+						<div class="form-error">{ d.Errors["alert_threshold"] }</div>
+					}
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">{ submitLabel }</button>
+					<a href="/tiers" class="btn btn-secondary">Cancel</a>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+func formInputClass(errMsg string) string {
+	if errMsg != "" {
+		return "form-control is-error"
+	}
+	return "form-control"
+}
+
+func tierFieldStr(t *domain.RewardTier, field string) string {
+	if t == nil {
+		if field == "purchase_limit" {
+			return "2"
+		}
+		if field == "alert_threshold" {
+			return "5"
+		}
+		if field == "inventory_count" {
+			return "0"
+		}
+		return ""
+	}
+	switch field {
+	case "name":
+		return t.Name
+	case "description":
+		if t.Description != nil {
+			return *t.Description
+		}
+		return ""
+	case "inventory_count":
+		return fmt.Sprintf("%d", t.InventoryCount)
+	case "purchase_limit":
+		return fmt.Sprintf("%d", t.PurchaseLimit)
+	case "alert_threshold":
+		return fmt.Sprintf("%d", t.AlertThreshold)
+	}
+	return ""
+}

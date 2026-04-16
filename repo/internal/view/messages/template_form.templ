@@ -1,0 +1,94 @@
+package messages
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type TemplateFormData struct {
+	Template *domain.MessageTemplate // nil = create
+	Errors   map[string]string
+}
+
+templ TemplateForm(pctx view.PageCtx, d TemplateFormData) {
+	if d.Template == nil {
+		@view.Layout("New Template", pctx) {
+			@tmplFormInner(d, "/messages/templates", "Create Template", "New Message Template")
+		}
+	} else {
+		@view.Layout("Edit Template", pctx) {
+			@tmplFormInner(d, "/messages/templates/"+d.Template.ID.String(), "Update Template", "Edit "+d.Template.Name)
+		}
+	}
+}
+
+templ tmplFormInner(d TemplateFormData, action string, submitLabel string, title string) {
+	<div class="page-header">
+		<div><h1 class="page-title">{ title }</h1></div>
+		<a href="/messages" class="btn btn-secondary">← Back</a>
+	</div>
+	<div class="card" style="max-width:600px">
+		<div class="card-body">
+			<form method="POST" action={ templ.SafeURL(action) }>
+				if d.Template != nil {
+					<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Template.Version) }/>
+				}
+				<div class="form-group">
+					<label class="form-label required" for="name">Name</label>
+					<input id="name" name="name" type="text" class="form-control" value={ tmplName(d.Template) } required/>
+					if d.Errors["name"] != "" {
+						<div class="form-error">{ d.Errors["name"] }</div>
+					}
+				</div>
+				<div class="form-row">
+					<div class="form-group">
+						<label class="form-label required" for="category">Category</label>
+						<select id="category" name="category" class="form-control" required>
+							<option value="">Select…</option>
+							<option value="booking_result" selected?={ tmplCategory(d.Template) == "booking_result" }>Booking Result</option>
+							<option value="booking_change" selected?={ tmplCategory(d.Template) == "booking_change" }>Booking Change</option>
+							<option value="expiration" selected?={ tmplCategory(d.Template) == "expiration" }>Expiration</option>
+							<option value="fulfillment_progress" selected?={ tmplCategory(d.Template) == "fulfillment_progress" }>Fulfillment Progress</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="form-label required" for="channel">Channel</label>
+						<select id="channel" name="channel" class="form-control" required>
+							<option value="">Select…</option>
+							<option value="in_app" selected?={ tmplChannel(d.Template) == "in_app" }>In-App</option>
+							<option value="sms" selected?={ tmplChannel(d.Template) == "sms" }>SMS</option>
+							<option value="email" selected?={ tmplChannel(d.Template) == "email" }>Email</option>
+						</select>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="form-label required" for="body_template">Body Template</label>
+					<textarea id="body_template" name="body_template" class="form-control" rows="6" required>{ tmplBody(d.Template) }</textarea>
+					<div class="text-sm text-muted" style="margin-top:4px">{ "Use {{.Name}}, {{.TierName}} etc. as placeholders." }</div>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">{ submitLabel }</button>
+					<a href="/messages" class="btn btn-secondary">Cancel</a>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+func tmplName(t *domain.MessageTemplate) string {
+	if t == nil { return "" }
+	return t.Name
+}
+func tmplCategory(t *domain.MessageTemplate) string {
+	if t == nil { return "" }
+	return string(t.Category)
+}
+func tmplChannel(t *domain.MessageTemplate) string {
+	if t == nil { return "" }
+	return string(t.Channel)
+}
+func tmplBody(t *domain.MessageTemplate) string {
+	if t == nil { return "" }
+	return t.BodyTemplate
+}

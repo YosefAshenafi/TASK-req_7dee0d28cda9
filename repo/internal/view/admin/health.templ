@@ -1,0 +1,114 @@
+package admin
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type HealthCheck struct {
+	Name   string
+	OK     bool
+	Detail string
+}
+
+type HealthData struct {
+	Checks  []HealthCheck
+	JobRuns []domain.JobRunHistory
+}
+
+templ Health(pctx view.PageCtx, d HealthData) {
+	@view.Layout("System Health", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">System Health</h1>
+			</div>
+		</div>
+		<div class="health-grid">
+			for _, c := range d.Checks {
+				<div class="health-card">
+					if c.OK {
+						<div class="health-indicator ok"></div>
+					} else {
+						<div class="health-indicator fail"></div>
+					}
+					<div>
+						<div class="name">{ c.Name }</div>
+						<div class="status-text">{ c.Detail }</div>
+					</div>
+				</div>
+			}
+		</div>
+		<div class="card">
+			<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+				<span>Job Run History</span>
+				<div class="btn-group">
+					<form method="POST" action="/admin/jobs/overdue-check/run">
+						<button type="submit" class="btn btn-sm btn-secondary">Run Overdue Check</button>
+					</form>
+					<form method="POST" action="/admin/jobs/notify-retry/run">
+						<button type="submit" class="btn btn-sm btn-secondary">Run Notify Retry</button>
+					</form>
+					<form method="POST" action="/admin/jobs/cleanup/run">
+						<button type="submit" class="btn btn-sm btn-secondary">Run Cleanup</button>
+					</form>
+				</div>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Job</th>
+							<th>Status</th>
+							<th>Started</th>
+							<th>Duration</th>
+							<th>Records</th>
+							<th>Error</th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.JobRuns) == 0 {
+							<tr><td colspan="6" style="text-align:center;padding:24px;color:#64748b">No job runs recorded.</td></tr>
+						}
+						for _, jr := range d.JobRuns {
+							<tr>
+								<td class="mono text-sm">{ jr.JobName }</td>
+								<td>
+									switch jr.Status {
+									case domain.JobCompleted:
+										<span class="badge badge-green">COMPLETED</span>
+									case domain.JobFailed:
+										<span class="badge badge-red">FAILED</span>
+									default:
+										<span class="badge badge-yellow">{ string(jr.Status) }</span>
+									}
+								</td>
+								<td class="text-sm text-muted">{ jr.StartedAt.Format("Jan 2, 3:04 PM") }</td>
+								<td class="text-sm text-muted">{ jobDuration(jr) }</td>
+								<td class="text-sm">{ recordsStr(jr) }</td>
+								<td>
+									if jr.ErrorStack != nil {
+										<details>
+											<summary class="text-danger text-sm">Error</summary>
+											<pre class="json-diff" style="font-size:10px">{ *jr.ErrorStack }</pre>
+										</details>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}
+
+func jobDuration(jr domain.JobRunHistory) string {
+	if jr.FinishedAt == nil { return "…" }
+	d := jr.FinishedAt.Sub(jr.StartedAt)
+	if d.Seconds() < 1 { return fmt.Sprintf("%dms", d.Milliseconds()) }
+	return fmt.Sprintf("%.1fs", d.Seconds())
+}
+func recordsStr(jr domain.JobRunHistory) string {
+	return fmt.Sprintf("%d", jr.RecordsProcessed)
+}

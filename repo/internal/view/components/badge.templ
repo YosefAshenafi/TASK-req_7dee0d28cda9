@@ -1,0 +1,68 @@
+package components
+
+import "github.com/fulfillops/fulfillops/internal/domain"
+
+templ FulfillmentStatusBadge(status domain.FulfillmentStatus) {
+	<span class={ "badge " + fulfillmentStatusClass(status) }>{ string(status) }</span>
+}
+
+func fulfillmentStatusClass(s domain.FulfillmentStatus) string {
+	switch s {
+	case domain.StatusDraft:
+		return "badge-gray"
+	case domain.StatusReadyToShip:
+		return "badge-blue"
+	case domain.StatusShipped:
+		return "badge-indigo"
+	case domain.StatusDelivered:
+		return "badge-teal"
+	case domain.StatusVoucherIssued:
+		return "badge-purple"
+	case domain.StatusCompleted:
+		return "badge-green"
+	case domain.StatusOnHold:
+		return "badge-yellow"
+	case domain.StatusCanceled:
+		return "badge-red"
+	default:
+		return "badge-gray"
+	}
+}
+
+templ ExceptionStatusBadge(status domain.ExceptionStatus) {
+	<span class={ "badge " + exceptionStatusClass(status) }>{ string(status) }</span>
+}
+
+func exceptionStatusClass(s domain.ExceptionStatus) string {
+	switch s {
+	case domain.ExceptionOpen:
+		return "badge-red"
+	case domain.ExceptionInvestigating:
+		return "badge-yellow"
+	case domain.ExceptionEscalated:
+		return "badge-orange"
+	case domain.ExceptionResolved:
+		return "badge-green"
+	default:
+		return "badge-gray"
+	}
+}
+
+templ SendLogStatusBadge(status domain.SendLogStatus) {
+	<span class={ "badge " + sendLogStatusClass(status) }>{ string(status) }</span>
+}
+
+func sendLogStatusClass(s domain.SendLogStatus) string {
+	switch s {
+	case domain.SendQueued:
+		return "badge-yellow"
+	case domain.SendSent:
+		return "badge-green"
+	case domain.SendFailed:
+		return "badge-red"
+	case domain.SendPrinted:
+		return "badge-teal"
+	default:
+		return "badge-gray"
+	}
+}

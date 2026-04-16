@@ -1,0 +1,33 @@
+# Binaries
+fulfillops
+/bin/
+
+# Environment
+.env
+.env.local
+
+# Generated Templ files
+*_templ.go
+
+# Test output
+*.test
+coverage.out
+
+# Exports and backups (runtime data)
+exports/
+backups/
+
+# Development encryption key (never commit)
+docker/encryption.key.dev
+*.key
+
+# Go build cache
+tmp/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

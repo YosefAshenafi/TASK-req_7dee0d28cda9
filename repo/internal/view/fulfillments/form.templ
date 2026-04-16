@@ -1,0 +1,70 @@
+package fulfillments
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type CreateFormData struct {
+	Tiers     []domain.RewardTier
+	Customers []domain.Customer
+	Errors    map[string]string
+}
+
+templ CreateForm(pctx view.PageCtx, d CreateFormData) {
+	@view.Layout("New Fulfillment", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">New Fulfillment</h1>
+			</div>
+			<a href="/fulfillments" class="btn btn-secondary">← Back</a>
+		</div>
+		<div class="card" style="max-width:520px">
+			<div class="card-body">
+				<form method="POST" action="/fulfillments">
+					<div class="form-group">
+						<label class="form-label required" for="tier_id">Reward Tier</label>
+						<select id="tier_id" name="tier_id" class="form-control" required>
+							<option value="">Select a tier…</option>
+							for _, t := range d.Tiers {
+								<option value={ t.ID.String() }>{ t.Name } (inventory: </option>
+							}
+						</select>
+						if d.Errors["tier_id"] != "" {
+							<div class="form-error">{ d.Errors["tier_id"] }</div>
+						}
+					</div>
+					<div class="form-group">
+						<label class="form-label required" for="customer_id">Customer</label>
+						<select id="customer_id" name="customer_id" class="form-control" required>
+							<option value="">Select a customer…</option>
+							for _, c := range d.Customers {
+								<option value={ c.ID.String() }>{ c.Name }</option>
+							}
+						</select>
+						if d.Errors["customer_id"] != "" {
+							<div class="form-error">{ d.Errors["customer_id"] }</div>
+						}
+					</div>
+					<div class="form-group">
+						<label class="form-label required">Type</label>
+						<div class="btn-group" style="margin-top:4px">
+							<label class="form-check">
+								<input type="radio" name="type" value="PHYSICAL" checked/>
+								Physical
+							</label>
+							<label class="form-check">
+								<input type="radio" name="type" value="VOUCHER"/>
+								Voucher
+							</label>
+						</div>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">Create Fulfillment</button>
+						<a href="/fulfillments" class="btn btn-secondary">Cancel</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

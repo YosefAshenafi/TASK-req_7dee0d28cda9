@@ -1,0 +1,103 @@
+package tiers
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type DetailData struct {
+	Tier         domain.RewardTier
+	Fulfillments []domain.Fulfillment
+	IsAdmin      bool
+}
+
+templ Detail(pctx view.PageCtx, d DetailData) {
+	@view.Layout(d.Tier.Name, pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">{ d.Tier.Name }</h1>
+				<div class="page-subtitle">Reward Tier</div>
+			</div>
+			if d.IsAdmin {
+				<div class="btn-group">
+					<a href={ templ.SafeURL("/tiers/" + d.Tier.ID.String() + "/edit") } class="btn btn-secondary">Edit</a>
+					<form method="POST" action={ templ.SafeURL("/tiers/" + d.Tier.ID.String() + "/delete") } onsubmit="return confirm('Delete this tier?')">
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+				</div>
+			}
+		</div>
+		<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px">
+			<div>
+				<div class="card">
+					<div class="card-header">Tier Details</div>
+					<div class="card-body">
+						<div class="detail-grid">
+							<div class="detail-item">
+								<div class="detail-label">Inventory</div>
+								<div class="detail-value">
+									if d.Tier.InventoryCount <= d.Tier.AlertThreshold {
+										<span class="text-danger">{ fmt.Sprintf("%d", d.Tier.InventoryCount) }</span>
+									} else {
+										{ fmt.Sprintf("%d", d.Tier.InventoryCount) }
+									}
+								</div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Purchase Limit</div>
+								<div class="detail-value">{ fmt.Sprintf("%d / 30 days", d.Tier.PurchaseLimit) }</div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Alert Threshold</div>
+								<div class="detail-value">{ fmt.Sprintf("%d", d.Tier.AlertThreshold) }</div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Version</div>
+								<div class="detail-value">{ fmt.Sprintf("%d", d.Tier.Version) }</div>
+							</div>
+						</div>
+						if d.Tier.Description != nil && *d.Tier.Description != "" {
+							<div class="divider"></div>
+							<div class="detail-label">Description</div>
+							<div style="margin-top:4px;font-size:13px">{ *d.Tier.Description }</div>
+						}
+					</div>
+				</div>
+			</div>
+			<div>
+				<div class="card">
+					<div class="card-header">Recent Fulfillments</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>ID</th>
+									<th>Customer</th>
+									<th>Type</th>
+									<th>Status</th>
+									<th>Created</th>
+								</tr>
+							</thead>
+							<tbody>
+								if len(d.Fulfillments) == 0 {
+									<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">No fulfillments yet.</td></tr>
+								}
+								for _, f := range d.Fulfillments {
+									<tr>
+										<td class="mono text-sm"><a href={ templ.SafeURL("/fulfillments/" + f.ID.String()) }>{ f.ID.String()[:8] }…</a></td>
+										<td class="text-sm">{ f.CustomerID.String()[:8] }…</td>
+										<td>{ string(f.Type) }</td>
+										<td>@components.FulfillmentStatusBadge(f.Status)</td>
+										<td class="text-sm text-muted">{ f.CreatedAt.Format("Jan 2, 2006") }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

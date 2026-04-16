@@ -1,0 +1,86 @@
+package settings
+
+import (
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type BusinessHoursData struct {
+	Start       string // "08:00"
+	End         string // "18:00"
+	BusinessDays []int  // [1,2,3,4,5]
+	Timezone    string
+}
+
+templ BusinessHours(pctx view.PageCtx, d BusinessHoursData) {
+	@view.Layout("Business Hours", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Business Hours</h1>
+				<div class="page-subtitle">Used for SLA voucher deadline calculations</div>
+			</div>
+			<a href="/settings/blackout-dates" class="btn btn-secondary">Blackout Dates →</a>
+		</div>
+		<div class="card" style="max-width:480px">
+			<div class="card-body">
+				<form method="POST" action="/settings/business-hours">
+					<div class="form-row">
+						<div class="form-group">
+							<label class="form-label required" for="start">Business Hours Start</label>
+							<input id="start" name="start" type="time" class="form-control" value={ d.Start } required/>
+						</div>
+						<div class="form-group">
+							<label class="form-label required" for="end">Business Hours End</label>
+							<input id="end" name="end" type="time" class="form-control" value={ d.End } required/>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Business Days</label>
+						<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+							for i, dayName := range dayNames() {
+								<label class="form-check">
+									<input type="checkbox" name="business_days" value={ dayValue(i+1) } checked?={ isDayChecked(d.BusinessDays, i+1) }/>
+									{ dayName }
+								</label>
+							}
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="form-label required" for="timezone">Timezone</label>
+						<select id="timezone" name="timezone" class="form-control" required>
+							for _, tz := range commonTimezones() {
+								<option value={ tz } selected?={ d.Timezone == tz }>{ tz }</option>
+							}
+						</select>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">Save</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}
+
+func dayNames() []string { return []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"} }
+func dayValue(i int) string {
+	switch i {
+	case 1: return "1"
+	case 2: return "2"
+	case 3: return "3"
+	case 4: return "4"
+	case 5: return "5"
+	case 6: return "6"
+	case 7: return "7"
+	}
+	return ""
+}
+func isDayChecked(days []int, day int) bool {
+	for _, d := range days { if d == day { return true } }
+	return false
+}
+func commonTimezones() []string {
+	return []string{
+		"America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+		"America/Anchorage", "Pacific/Honolulu", "UTC",
+	}
+}

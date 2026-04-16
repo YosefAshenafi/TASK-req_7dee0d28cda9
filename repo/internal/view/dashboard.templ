@@ -1,0 +1,84 @@
+package view
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+)
+
+type DashboardData struct {
+	PendingCount    int
+	OverdueExceptions int
+	ThresholdAlerts []domain.RewardTier
+	FulfilledToday  int
+	QueuedMessages  int
+}
+
+templ Dashboard(pctx PageCtx, d DashboardData) {
+	@Layout("Dashboard", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Dashboard</h1>
+				<div class="page-subtitle">Overview of fulfillment operations</div>
+			</div>
+		</div>
+		<div class="stat-cards">
+			<div class="stat-card info">
+				<div class="stat-value">{ fmt.Sprintf("%d", d.PendingCount) }</div>
+				<div class="stat-label">Pending Fulfillments</div>
+			</div>
+			<div class={ "stat-card " + statColor(d.OverdueExceptions) }>
+				<div class="stat-value">{ fmt.Sprintf("%d", d.OverdueExceptions) }</div>
+				<div class="stat-label">Open Exceptions</div>
+			</div>
+			<div class="stat-card success">
+				<div class="stat-value">{ fmt.Sprintf("%d", d.FulfilledToday) }</div>
+				<div class="stat-label">Completed Today</div>
+			</div>
+			<div class={ "stat-card " + statColor(d.QueuedMessages) }>
+				<div class="stat-value">{ fmt.Sprintf("%d", d.QueuedMessages) }</div>
+				<div class="stat-label">Queued Messages</div>
+			</div>
+		</div>
+		if len(d.ThresholdAlerts) > 0 {
+			<div class="card" style="margin-bottom:20px">
+				<div class="card-header">⚠ Inventory Threshold Alerts</div>
+				<div class="card-body" style="padding:0">
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>Tier</th>
+									<th>Inventory</th>
+									<th>Threshold</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, t := range d.ThresholdAlerts {
+									<tr>
+										<td><a href={ templ.SafeURL("/tiers/" + t.ID.String()) }>{ t.Name }</a></td>
+										<td class="text-danger">{ fmt.Sprintf("%d", t.InventoryCount) }</td>
+										<td class="text-muted">{ fmt.Sprintf("%d", t.AlertThreshold) }</td>
+										<td><a href={ templ.SafeURL("/tiers/" + t.ID.String() + "/edit") } class="btn btn-sm btn-secondary">Restock</a></td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		}
+		<div class="btn-group">
+			<a href="/fulfillments/new" class="btn btn-primary">+ New Fulfillment</a>
+			<a href="/tiers/new" class="btn btn-secondary">+ New Tier</a>
+			<a href="/customers/new" class="btn btn-secondary">+ New Customer</a>
+		</div>
+	}
+}
+
+func statColor(n int) string {
+	if n > 0 {
+		return "warning"
+	}
+	return "success"
+}

@@ -1,0 +1,101 @@
+package reports
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type HistoryData struct {
+	Exports []domain.ReportExport
+	Pager   view.Pagination
+}
+
+templ History(pctx view.PageCtx, d HistoryData) {
+	@view.Layout("Export History", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Export History</h1>
+			</div>
+			<a href="/reports" class="btn btn-primary">+ New Export</a>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Type</th>
+							<th>Status</th>
+							<th>Size</th>
+							<th>Expires</th>
+							<th>Created</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Exports) == 0 {
+							<tr><td colspan="6" style="text-align:center;padding:32px;color:#64748b">No exports yet.</td></tr>
+						}
+						for _, e := range d.Exports {
+							<tr>
+								<td>{ e.ReportType }</td>
+								<td>@exportStatusBadge(string(e.Status))</td>
+								<td class="text-sm text-muted">{ exportFileSize(e) }</td>
+								<td class="text-sm text-muted">{ exportExpiry(e) }</td>
+								<td class="text-sm text-muted">{ e.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
+								<td>
+									<div class="btn-group">
+										if e.Status == "COMPLETED" && e.FilePath != nil {
+											<a href={ templ.SafeURL("/reports/exports/" + e.ID.String() + "/download") } class="btn btn-xs btn-primary">Download</a>
+											<form method="POST" action={ templ.SafeURL("/reports/exports/" + e.ID.String() + "/verify") }>
+												<button type="submit" class="btn btn-xs btn-secondary">Verify</button>
+											</form>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
+
+templ exportStatusBadge(status string) {
+	switch status {
+	case "COMPLETED":
+		<span class="badge badge-green">COMPLETED</span>
+	case "FAILED":
+		<span class="badge badge-red">FAILED</span>
+	case "PENDING":
+		<span class="badge badge-yellow">PENDING</span>
+	default:
+		<span class="badge badge-gray">{ status }</span>
+	}
+}
+
+func exportFileSize(e domain.ReportExport) string {
+	if e.FileSizeBytes == nil {
+		return "—"
+	}
+	size := *e.FileSizeBytes
+	if size < 1024 {
+		return fmt.Sprintf("%d B", size)
+	}
+	if size < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(size)/1024)
+	}
+	return fmt.Sprintf("%.1f MB", float64(size)/1024/1024)
+}
+
+func exportExpiry(e domain.ReportExport) string {
+	if e.ExpiresAt == nil {
+		return "—"
+	}
+	return e.ExpiresAt.Format("Jan 2, 2006")
+}

@@ -1,0 +1,124 @@
+package customers
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type TierUsage struct {
+	TierName     string
+	Used30Days   int
+	Limit        int
+}
+
+type DetailData struct {
+	Customer     domain.Customer
+	PhoneMasked  string
+	EmailMasked  string
+	AddressMasked string
+	TierUsages   []TierUsage
+	Fulfillments []domain.Fulfillment
+	CanEdit      bool
+}
+
+templ Detail(pctx view.PageCtx, d DetailData) {
+	@view.Layout(d.Customer.Name, pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">{ d.Customer.Name }</h1>
+				<div class="page-subtitle">Customer</div>
+			</div>
+			if d.CanEdit {
+				<a href={ templ.SafeURL("/customers/" + d.Customer.ID.String() + "/edit") } class="btn btn-secondary">Edit</a>
+			}
+		</div>
+		<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px">
+			<div class="card">
+				<div class="card-header">Contact Info</div>
+				<div class="card-body">
+					<div class="detail-item" style="margin-bottom:12px">
+						<div class="detail-label">Phone</div>
+						<div class="detail-value mono">{ d.PhoneMasked }</div>
+					</div>
+					<div class="detail-item" style="margin-bottom:12px">
+						<div class="detail-label">Email</div>
+						<div class="detail-value mono">{ d.EmailMasked }</div>
+					</div>
+					<div class="detail-item" style="margin-bottom:12px">
+						<div class="detail-label">Address</div>
+						<div class="detail-value mono">{ d.AddressMasked }</div>
+					</div>
+					<div class="detail-item">
+						<div class="detail-label">Customer Since</div>
+						<div class="detail-value">{ d.Customer.CreatedAt.Format("January 2, 2006") }</div>
+					</div>
+				</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:20px">
+				if len(d.TierUsages) > 0 {
+					<div class="card">
+						<div class="card-header">Purchase Limit Status (Last 30 Days)</div>
+						<div class="table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>Tier</th>
+										<th>Used</th>
+										<th>Limit</th>
+										<th>Remaining</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, u := range d.TierUsages {
+										<tr>
+											<td>{ u.TierName }</td>
+											<td>{ fmt.Sprintf("%d", u.Used30Days) }</td>
+											<td>{ fmt.Sprintf("%d", u.Limit) }</td>
+											<td>
+												if u.Limit-u.Used30Days <= 0 {
+													<span class="badge badge-red">0</span>
+												} else {
+													<span class="badge badge-green">{ fmt.Sprintf("%d", u.Limit-u.Used30Days) }</span>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				}
+				<div class="card">
+					<div class="card-header">Fulfillment History</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>ID</th>
+									<th>Type</th>
+									<th>Status</th>
+									<th>Created</th>
+								</tr>
+							</thead>
+							<tbody>
+								if len(d.Fulfillments) == 0 {
+									<tr><td colspan="4" style="text-align:center;padding:24px;color:#64748b">No fulfillments.</td></tr>
+								}
+								for _, f := range d.Fulfillments {
+									<tr>
+										<td><a href={ templ.SafeURL("/fulfillments/" + f.ID.String()) } class="mono text-sm">{ f.ID.String()[:8] }…</a></td>
+										<td>{ string(f.Type) }</td>
+										<td>@components.FulfillmentStatusBadge(f.Status)</td>
+										<td class="text-sm text-muted">{ f.CreatedAt.Format("Jan 2, 2006") }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}

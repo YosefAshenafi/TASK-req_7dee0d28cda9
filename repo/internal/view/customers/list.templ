@@ -1,0 +1,79 @@
+package customers
+
+import (
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type ListData struct {
+	Customers []MaskedCustomer
+	Query     string
+	Pager     view.Pagination
+	CanEdit   bool
+}
+
+type MaskedCustomer struct {
+	Customer    domain.Customer
+	PhoneMasked string
+	EmailMasked string
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Customers", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Customers</h1>
+				<div class="page-subtitle">Manage reward recipients</div>
+			</div>
+			if d.CanEdit {
+				<a href="/customers/new" class="btn btn-primary">+ New Customer</a>
+			}
+		</div>
+		<div class="card">
+			<div class="card-body" style="padding-bottom:0">
+				<form method="GET" action="/customers" class="filters-bar">
+					<input name="q" type="text" class="form-control search-input" placeholder="Search by name…" value={ d.Query }/>
+					<button type="submit" class="btn btn-secondary">Search</button>
+				</form>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Phone</th>
+							<th>Email</th>
+							<th>Created</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Customers) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No customers found.</td></tr>
+						}
+						for _, mc := range d.Customers {
+							<tr>
+								<td><a href={ templ.SafeURL("/customers/" + mc.Customer.ID.String()) }>{ mc.Customer.Name }</a></td>
+								<td class="mono text-sm text-muted">{ mc.PhoneMasked }</td>
+								<td class="mono text-sm text-muted">{ mc.EmailMasked }</td>
+								<td class="text-sm text-muted">{ mc.Customer.CreatedAt.Format("Jan 2, 2006") }</td>
+								<td>
+									<div class="btn-group">
+										<a href={ templ.SafeURL("/customers/" + mc.Customer.ID.String()) } class="btn btn-xs btn-secondary">View</a>
+										if d.CanEdit {
+											<a href={ templ.SafeURL("/customers/" + mc.Customer.ID.String() + "/edit") } class="btn btn-xs btn-secondary">Edit</a>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}

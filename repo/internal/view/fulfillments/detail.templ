@@ -1,0 +1,429 @@
+package fulfillments
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type TimelineEvent struct {
+	domain.TimelineEvent
+	ActorName string
+}
+
+type ExceptionItem struct {
+	domain.FulfillmentException
+}
+
+type DetailData struct {
+	Fulfillment  domain.Fulfillment
+	TierName     string
+	CustomerName string
+	Timeline     []TimelineEvent
+	Exceptions   []ExceptionItem
+	ShippingAddr *domain.ShippingAddressResponse
+	VoucherMasked string
+	CanTransition bool
+}
+
+templ Detail(pctx view.PageCtx, d DetailData) {
+	@view.Layout("Fulfillment", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title mono">{ d.Fulfillment.ID.String()[:8] }…</h1>
+				<div class="page-subtitle">Fulfillment Detail</div>
+			</div>
+			@components.FulfillmentStatusBadge(d.Fulfillment.Status)
+		</div>
+		<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+			<div style="display:flex;flex-direction:column;gap:16px">
+				<!-- Info Card -->
+				<div class="card">
+					<div class="card-header">Fulfillment Info</div>
+					<div class="card-body">
+						<div class="detail-grid">
+							<div class="detail-item">
+								<div class="detail-label">Tier</div>
+								<div class="detail-value"><a href={ templ.SafeURL("/tiers/" + d.Fulfillment.TierID.String()) }>{ d.TierName }</a></div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Customer</div>
+								<div class="detail-value"><a href={ templ.SafeURL("/customers/" + d.Fulfillment.CustomerID.String()) }>{ d.CustomerName }</a></div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Type</div>
+								<div class="detail-value">{ string(d.Fulfillment.Type) }</div>
+							</div>
+							<div class="detail-item">
+								<div class="detail-label">Created</div>
+								<div class="detail-value">{ d.Fulfillment.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</div>
+							</div>
+							if d.Fulfillment.ReadyAt != nil {
+								<div class="detail-item">
+									<div class="detail-label">Ready At</div>
+									<div class="detail-value">{ d.Fulfillment.ReadyAt.Format("Jan 2, 2006 3:04 PM") }</div>
+								</div>
+							}
+							if d.Fulfillment.ShippedAt != nil {
+								<div class="detail-item">
+									<div class="detail-label">Shipped At</div>
+									<div class="detail-value">{ d.Fulfillment.ShippedAt.Format("Jan 2, 2006 3:04 PM") }</div>
+								</div>
+							}
+							if d.Fulfillment.DeliveredAt != nil {
+								<div class="detail-item">
+									<div class="detail-label">Delivered At</div>
+									<div class="detail-value">{ d.Fulfillment.DeliveredAt.Format("Jan 2, 2006 3:04 PM") }</div>
+								</div>
+							}
+							if d.Fulfillment.CompletedAt != nil {
+								<div class="detail-item">
+									<div class="detail-label">Completed At</div>
+									<div class="detail-value">{ d.Fulfillment.CompletedAt.Format("Jan 2, 2006 3:04 PM") }</div>
+								</div>
+							}
+						</div>
+						if d.Fulfillment.CarrierName != nil || d.Fulfillment.TrackingNumber != nil {
+							<div class="divider"></div>
+							<div class="form-section-title">Shipment</div>
+							<div class="detail-grid">
+								if d.Fulfillment.CarrierName != nil {
+									<div class="detail-item">
+										<div class="detail-label">Carrier</div>
+										<div class="detail-value">{ *d.Fulfillment.CarrierName }</div>
+									</div>
+								}
+								if d.Fulfillment.TrackingNumber != nil {
+									<div class="detail-item">
+										<div class="detail-label">Tracking #</div>
+										<div class="detail-value mono">{ *d.Fulfillment.TrackingNumber }</div>
+									</div>
+								}
+							</div>
+						}
+						if d.VoucherMasked != "" {
+							<div class="divider"></div>
+							<div class="form-section-title">Voucher</div>
+							<div class="detail-grid">
+								<div class="detail-item">
+									<div class="detail-label">Voucher Code</div>
+									<div class="detail-value mono">{ d.VoucherMasked }</div>
+								</div>
+								if d.Fulfillment.VoucherExpiration != nil {
+									<div class="detail-item">
+										<div class="detail-label">Expires</div>
+										<div class="detail-value">{ d.Fulfillment.VoucherExpiration.Format("Jan 2, 2006") }</div>
+									</div>
+								}
+							</div>
+						}
+						if d.ShippingAddr != nil {
+							<div class="divider"></div>
+							<div class="form-section-title">Shipping Address</div>
+							<div class="detail-value mono">
+								{ d.ShippingAddr.Line1 }<br/>
+								if d.ShippingAddr.Line2 != "" {
+									{ d.ShippingAddr.Line2 }<br/>
+								}
+								{ d.ShippingAddr.City }, { d.ShippingAddr.State } { d.ShippingAddr.ZipCode }
+							</div>
+						}
+						if d.Fulfillment.HoldReason != nil {
+							<div class="divider"></div>
+							<div class="flash flash-warning">
+								<strong>On Hold:</strong> { *d.Fulfillment.HoldReason }
+							</div>
+						}
+						if d.Fulfillment.CancelReason != nil {
+							<div class="divider"></div>
+							<div class="flash flash-error">
+								<strong>Canceled:</strong> { *d.Fulfillment.CancelReason }
+							</div>
+						}
+					</div>
+				</div>
+				<!-- Transition Buttons -->
+				if d.CanTransition {
+					@transitionButtons(d)
+				}
+				<!-- Exceptions -->
+				if len(d.Exceptions) > 0 {
+					<div class="card">
+						<div class="card-header">Exceptions</div>
+						<div class="table-wrap">
+							<table>
+								<thead>
+									<tr><th>Type</th><th>Status</th><th>Opened</th><th></th></tr>
+								</thead>
+								<tbody>
+									for _, ex := range d.Exceptions {
+										<tr>
+											<td>{ string(ex.Type) }</td>
+											<td>@components.ExceptionStatusBadge(ex.Status)</td>
+											<td class="text-sm text-muted">{ ex.CreatedAt.Format("Jan 2, 2006") }</td>
+											<td><a href={ templ.SafeURL("/exceptions/" + ex.ID.String()) } class="btn btn-xs btn-secondary">View</a></td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				}
+			</div>
+			<!-- Timeline -->
+			<div class="card">
+				<div class="card-header">Status Timeline</div>
+				<div class="card-body">
+					if len(d.Timeline) == 0 {
+						<p class="text-muted text-sm">No transitions yet.</p>
+					}
+					<ul class="timeline">
+						for _, ev := range d.Timeline {
+							<li class="timeline-item">
+								<div class="timeline-dot done"></div>
+								<div class="timeline-time">{ ev.ChangedAt.Format("Jan 2, 3:04 PM") }</div>
+								<div class="timeline-content">
+									if ev.FromStatus != nil {
+										{ string(*ev.FromStatus) } →
+									}
+									<strong>{ string(ev.ToStatus) }</strong>
+								</div>
+								if ev.Reason != nil && *ev.Reason != "" {
+									<div class="text-sm text-muted" style="margin-top:2px">{ *ev.Reason }</div>
+								}
+								<div class="timeline-actor">{ ev.ActorName }</div>
+							</li>
+						}
+					</ul>
+				</div>
+			</div>
+		</div>
+		<!-- Transition Modals -->
+		@transitionModals(d)
+	}
+}
+
+templ transitionButtons(d DetailData) {
+	<div class="card">
+		<div class="card-header">Actions</div>
+		<div class="card-body">
+			<div class="btn-group">
+				switch d.Fulfillment.Status {
+				case domain.StatusDraft:
+					<button type="button" class="btn btn-primary" onclick="openModal('modal-ready')">Mark Ready to Ship</button>
+				case domain.StatusReadyToShip:
+					<button type="button" class="btn btn-primary" onclick="openModal('modal-ship')">Ship</button>
+					<button type="button" class="btn btn-primary" onclick="openModal('modal-voucher')">Issue Voucher</button>
+					<button type="button" class="btn btn-secondary" onclick="openModal('modal-hold')">Hold</button>
+					<button type="button" class="btn btn-danger" onclick="openModal('modal-cancel')">Cancel</button>
+				case domain.StatusShipped:
+					<button type="button" class="btn btn-primary" onclick="openModal('modal-deliver')">Mark Delivered</button>
+					<button type="button" class="btn btn-secondary" onclick="openModal('modal-hold')">Hold</button>
+					<button type="button" class="btn btn-danger" onclick="openModal('modal-cancel')">Cancel</button>
+				case domain.StatusVoucherIssued:
+					<button type="button" class="btn btn-success" onclick="openModal('modal-complete')">Complete</button>
+					<button type="button" class="btn btn-secondary" onclick="openModal('modal-hold')">Hold</button>
+					<button type="button" class="btn btn-danger" onclick="openModal('modal-cancel')">Cancel</button>
+				case domain.StatusDelivered:
+					<button type="button" class="btn btn-success" onclick="openModal('modal-complete')">Complete</button>
+				case domain.StatusOnHold:
+					<button type="button" class="btn btn-primary" onclick="openModal('modal-resume')">Resume (Ready to Ship)</button>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ transitionModals(d DetailData) {
+	<!-- Ready to Ship -->
+	<div id="modal-ready" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Mark Ready to Ship <button class="modal-close" onclick="closeModal('modal-ready')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="READY_TO_SHIP"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				if d.Fulfillment.Type == domain.TypePhysical && d.ShippingAddr == nil {
+					<div class="modal-body">
+						<p class="text-sm text-muted" style="margin-bottom:14px">Shipping address required for physical fulfillments.</p>
+						<div class="form-group">
+							<label class="form-label required">Address Line 1</label>
+							<input name="addr_line1" type="text" class="form-control" required/>
+						</div>
+						<div class="form-group">
+							<label class="form-label">Address Line 2</label>
+							<input name="addr_line2" type="text" class="form-control"/>
+						</div>
+						<div class="form-row-3">
+							<div class="form-group">
+								<label class="form-label required">City</label>
+								<input name="addr_city" type="text" class="form-control" required/>
+							</div>
+							<div class="form-group">
+								<label class="form-label required">State</label>
+								<input name="addr_state" type="text" class="form-control" maxlength="2" placeholder="NY" required/>
+							</div>
+							<div class="form-group">
+								<label class="form-label required">ZIP</label>
+								<input name="addr_zip" type="text" class="form-control" pattern="[0-9]{5}" required/>
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="modal-body">
+						<p>Confirm marking this fulfillment as Ready to Ship?</p>
+					</div>
+				}
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-ready')">Cancel</button>
+					<button type="submit" class="btn btn-primary">Confirm</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Ship -->
+	<div id="modal-ship" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Ship Fulfillment <button class="modal-close" onclick="closeModal('modal-ship')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="SHIPPED"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="form-label required">Carrier Name</label>
+						<input name="carrier_name" type="text" class="form-control" required/>
+					</div>
+					<div class="form-group">
+						<label class="form-label required">Tracking Number</label>
+						<input name="tracking_number" type="text" class="form-control" data-validate="tracking" required/>
+						<div class="form-error"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-ship')">Cancel</button>
+					<button type="submit" class="btn btn-primary">Ship</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Voucher -->
+	<div id="modal-voucher" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Issue Voucher <button class="modal-close" onclick="closeModal('modal-voucher')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="VOUCHER_ISSUED"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="form-label required">Voucher Code</label>
+						<input name="voucher_code" type="text" class="form-control" required/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Expiration Date</label>
+						<input name="voucher_expiration" type="date" class="form-control"/>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-voucher')">Cancel</button>
+					<button type="submit" class="btn btn-primary">Issue</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Hold -->
+	<div id="modal-hold" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Place On Hold <button class="modal-close" onclick="closeModal('modal-hold')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") } data-require="reason">
+				<input type="hidden" name="to_status" value="ON_HOLD"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="form-label required">Reason</label>
+						<textarea name="reason" class="form-control" rows="3" required></textarea>
+						<div class="form-error"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-hold')">Cancel</button>
+					<button type="submit" class="btn btn-secondary">Place On Hold</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Cancel -->
+	<div id="modal-cancel" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Cancel Fulfillment <button class="modal-close" onclick="closeModal('modal-cancel')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") } data-require="reason">
+				<input type="hidden" name="to_status" value="CANCELED"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<div class="flash flash-warning">This will cancel the fulfillment and restore inventory.</div>
+					<div class="form-group" style="margin-top:12px">
+						<label class="form-label required">Reason</label>
+						<textarea name="reason" class="form-control" rows="3" required></textarea>
+						<div class="form-error"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-cancel')">Back</button>
+					<button type="submit" class="btn btn-danger">Cancel Fulfillment</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Complete -->
+	<div id="modal-complete" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Complete Fulfillment <button class="modal-close" onclick="closeModal('modal-complete')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="COMPLETED"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<p>Mark this fulfillment as completed?</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-complete')">Cancel</button>
+					<button type="submit" class="btn btn-success">Complete</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Deliver -->
+	<div id="modal-deliver" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Mark Delivered <button class="modal-close" onclick="closeModal('modal-deliver')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="DELIVERED"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<p>Confirm delivery of this fulfillment?</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-deliver')">Cancel</button>
+					<button type="submit" class="btn btn-primary">Mark Delivered</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- Resume -->
+	<div id="modal-resume" class="modal-backdrop">
+		<div class="modal">
+			<div class="modal-header">Resume Fulfillment <button class="modal-close" onclick="closeModal('modal-resume')">×</button></div>
+			<form method="POST" action={ templ.SafeURL("/fulfillments/" + d.Fulfillment.ID.String() + "/transition") }>
+				<input type="hidden" name="to_status" value="READY_TO_SHIP"/>
+				<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.Fulfillment.Version) }/>
+				<div class="modal-body">
+					<p>Resume this fulfillment (set back to Ready to Ship)?</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" onclick="closeModal('modal-resume')">Cancel</button>
+					<button type="submit" class="btn btn-primary">Resume</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+var _ = fmt.Sprintf

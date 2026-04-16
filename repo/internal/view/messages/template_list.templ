@@ -1,0 +1,86 @@
+package messages
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type TemplateListData struct {
+	Templates      []domain.MessageTemplate
+	CategoryFilter string
+	ChannelFilter  string
+	IsAdmin        bool
+}
+
+templ TemplateList(pctx view.PageCtx, d TemplateListData) {
+	@view.Layout("Message Templates", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Message Templates</h1>
+			</div>
+			<div class="btn-group">
+				if d.IsAdmin {
+					<a href="/messages/templates/new" class="btn btn-primary">+ New Template</a>
+				}
+				<a href="/messages/send-logs" class="btn btn-secondary">Send Logs</a>
+				<a href="/messages/handoff" class="btn btn-secondary">Handoff Queue</a>
+			</div>
+		</div>
+		<div class="card" style="margin-bottom:16px">
+			<div class="card-body">
+				<form method="GET" action="/messages" class="filters-bar">
+					<select name="category" class="form-control">
+						<option value="">All Categories</option>
+						<option value="booking_result" selected?={ d.CategoryFilter == "booking_result" }>Booking Result</option>
+						<option value="booking_change" selected?={ d.CategoryFilter == "booking_change" }>Booking Change</option>
+						<option value="expiration" selected?={ d.CategoryFilter == "expiration" }>Expiration</option>
+						<option value="fulfillment_progress" selected?={ d.CategoryFilter == "fulfillment_progress" }>Fulfillment Progress</option>
+					</select>
+					<select name="channel" class="form-control">
+						<option value="">All Channels</option>
+						<option value="in_app" selected?={ d.ChannelFilter == "in_app" }>In-App</option>
+						<option value="sms" selected?={ d.ChannelFilter == "sms" }>SMS</option>
+						<option value="email" selected?={ d.ChannelFilter == "email" }>Email</option>
+					</select>
+					<button type="submit" class="btn btn-secondary">Filter</button>
+				</form>
+			</div>
+		</div>
+		<div class="card">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Category</th>
+							<th>Channel</th>
+							<th>Version</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Templates) == 0 {
+							<tr><td colspan="5" style="text-align:center;padding:32px;color:#64748b">No templates found.</td></tr>
+						}
+						for _, t := range d.Templates {
+							<tr>
+								<td>{ t.Name }</td>
+								<td><span class="badge badge-gray">{ string(t.Category) }</span></td>
+								<td><span class="badge badge-blue">{ string(t.Channel) }</span></td>
+								<td class="text-sm text-muted">v{ channelVersion(t) }</td>
+								<td>
+									if d.IsAdmin {
+										<a href={ templ.SafeURL("/messages/templates/" + t.ID.String() + "/edit") } class="btn btn-xs btn-secondary">Edit</a>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}
+
+func channelVersion(t domain.MessageTemplate) string { return fmt.Sprintf("%d", t.Version) }

@@ -1,0 +1,87 @@
+package admin
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+)
+
+type UserFormData struct {
+	User   *domain.User // nil = create
+	Errors map[string]string
+}
+
+templ UserForm(pctx view.PageCtx, d UserFormData) {
+	if d.User == nil {
+		@view.Layout("New User", pctx) {
+			@userFormInner(d, "/admin/users", "Create User", "New User")
+		}
+	} else {
+		@view.Layout("Edit User", pctx) {
+			@userFormInner(d, "/admin/users/"+d.User.ID.String(), "Update User", "Edit "+d.User.Username)
+		}
+	}
+}
+
+templ userFormInner(d UserFormData, action string, submitLabel string, title string) {
+	<div class="page-header">
+		<div><h1 class="page-title">{ title }</h1></div>
+		<a href="/admin/users" class="btn btn-secondary">← Back</a>
+	</div>
+	<div class="card" style="max-width:480px">
+		<div class="card-body">
+			<form method="POST" action={ templ.SafeURL(action) }>
+				if d.User != nil {
+					<input type="hidden" name="version" value={ fmt.Sprintf("%d", d.User.Version) }/>
+				}
+				<div class="form-group">
+					<label class="form-label required" for="username">Username</label>
+					<input id="username" name="username" type="text" class="form-control"
+						value={ userFieldStr(d.User, "username") } required/>
+					if d.Errors["username"] != "" {
+						<div class="form-error">{ d.Errors["username"] }</div>
+					}
+				</div>
+				<div class="form-group">
+					<label class="form-label required" for="email">Email</label>
+					<input id="email" name="email" type="email" class="form-control"
+						value={ userFieldStr(d.User, "email") } required/>
+					if d.Errors["email"] != "" {
+						<div class="form-error">{ d.Errors["email"] }</div>
+					}
+				</div>
+				if d.User == nil {
+					<div class="form-group">
+						<label class="form-label required" for="password">Password</label>
+						<input id="password" name="password" type="password" class="form-control" required/>
+						if d.Errors["password"] != "" {
+							<div class="form-error">{ d.Errors["password"] }</div>
+						}
+					</div>
+				}
+				<div class="form-group">
+					<label class="form-label required" for="role">Role</label>
+					<select id="role" name="role" class="form-control" required>
+						<option value="ADMINISTRATOR" selected?={ userFieldStr(d.User, "role") == "ADMINISTRATOR" }>Administrator</option>
+						<option value="FULFILLMENT_SPECIALIST" selected?={ userFieldStr(d.User, "role") == "FULFILLMENT_SPECIALIST" }>Fulfillment Specialist</option>
+						<option value="AUDITOR" selected?={ userFieldStr(d.User, "role") == "AUDITOR" }>Auditor</option>
+					</select>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">{ submitLabel }</button>
+					<a href="/admin/users" class="btn btn-secondary">Cancel</a>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+func userFieldStr(u *domain.User, field string) string {
+	if u == nil { return "" }
+	switch field {
+	case "username": return u.Username
+	case "email": return u.Email
+	case "role": return string(u.Role)
+	}
+	return ""
+}

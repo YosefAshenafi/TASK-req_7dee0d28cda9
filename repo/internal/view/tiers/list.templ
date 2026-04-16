@@ -1,0 +1,91 @@
+package tiers
+
+import (
+	"fmt"
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/view"
+	"github.com/fulfillops/fulfillops/internal/view/components"
+)
+
+type ListData struct {
+	Tiers  []domain.RewardTier
+	Query  string
+	Pager  view.Pagination
+	IsAdmin bool
+}
+
+templ List(pctx view.PageCtx, d ListData) {
+	@view.Layout("Reward Tiers", pctx) {
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Reward Tiers</h1>
+				<div class="page-subtitle">Manage reward inventory</div>
+			</div>
+			if d.IsAdmin {
+				<a href="/tiers/new" class="btn btn-primary">+ New Tier</a>
+			}
+		</div>
+		<div class="card">
+			<div class="card-body" style="padding-bottom:0">
+				<form method="GET" action="/tiers" class="filters-bar">
+					<input name="q" type="text" class="form-control search-input" placeholder="Search by name…" value={ d.Query }/>
+					<button type="submit" class="btn btn-secondary">Search</button>
+				</form>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Inventory</th>
+							<th>Purchase Limit</th>
+							<th>Alert Threshold</th>
+							<th>Status</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						if len(d.Tiers) == 0 {
+							<tr><td colspan="6" style="text-align:center;padding:32px;color:#64748b">No tiers found.</td></tr>
+						}
+						for _, t := range d.Tiers {
+							<tr>
+								<td><a href={ templ.SafeURL("/tiers/" + t.ID.String()) }>{ t.Name }</a></td>
+								<td>
+									if t.InventoryCount <= t.AlertThreshold {
+										<span class="text-danger">{ fmt.Sprintf("%d", t.InventoryCount) } ⚠</span>
+									} else {
+										{ fmt.Sprintf("%d", t.InventoryCount) }
+									}
+								</td>
+								<td>{ fmt.Sprintf("%d", t.PurchaseLimit) }</td>
+								<td>{ fmt.Sprintf("%d", t.AlertThreshold) }</td>
+								<td>
+									if t.DeletedAt != nil {
+										<span class="badge badge-red">Deleted</span>
+									} else {
+										<span class="badge badge-green">Active</span>
+									}
+								</td>
+								<td>
+									<div class="btn-group">
+										<a href={ templ.SafeURL("/tiers/" + t.ID.String()) } class="btn btn-xs btn-secondary">View</a>
+										if d.IsAdmin {
+											<a href={ templ.SafeURL("/tiers/" + t.ID.String() + "/edit") } class="btn btn-xs btn-secondary">Edit</a>
+											<form method="POST" action={ templ.SafeURL("/tiers/" + t.ID.String() + "/delete") } style="display:inline" onsubmit="return confirm('Delete this tier?')">
+												<button type="submit" class="btn btn-xs btn-danger">Delete</button>
+											</form>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-footer">
+				@components.Pagination(d.Pager)
+			</div>
+		</div>
+	}
+}
