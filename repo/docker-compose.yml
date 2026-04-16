@@ -20,7 +20,7 @@ services:
 
   app:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
     container_name: fulfillops-app
     restart: unless-stopped
@@ -35,7 +35,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../migrations:/app/migrations:ro
+      - ./migrations:/app/migrations:ro
       - app_exports:/app/exports
       - app_backups:/app/backups
       - app_key:/app/keystore

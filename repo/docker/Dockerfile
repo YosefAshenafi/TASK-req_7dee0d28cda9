@@ -33,9 +33,11 @@ WORKDIR /app
 COPY --from=builder /fulfillops .
 COPY --from=builder /usr/local/bin/migrate /usr/local/bin/migrate
 COPY --chown=fulfillops:fulfillops static/ ./static/
+COPY --chown=fulfillops:fulfillops docker/entrypoint.sh ./entrypoint.sh
 
 # Create runtime directories
-RUN mkdir -p /app/exports /app/backups /app/migrations && \
+RUN mkdir -p /app/exports /app/backups /app/migrations /app/keystore && \
+    chmod +x /app/entrypoint.sh && \
     chown -R fulfillops:fulfillops /app
 
 USER fulfillops
@@ -45,4 +47,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD wget -qO- http://localhost:8080/healthz || exit 1
 
-ENTRYPOINT ["./fulfillops"]
+ENTRYPOINT ["/app/entrypoint.sh"]
