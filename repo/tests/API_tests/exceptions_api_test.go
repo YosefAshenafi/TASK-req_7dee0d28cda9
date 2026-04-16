@@ -63,8 +63,12 @@ func TestExceptionsGet(t *testing.T) {
 	rr = admin(http.MethodGet, "/api/v1/exceptions/"+excID, nil)
 	mustStatus(t, rr, http.StatusOK)
 	body := decodeJSON(t, rr)
-	if body["id"] != excID {
-		t.Errorf("id mismatch: got %v want %v", body["id"], excID)
+	exception, ok := body["exception"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected exception object in response, got %T", body["exception"])
+	}
+	if exception["id"] != excID {
+		t.Errorf("id mismatch: got %v want %v", exception["id"], excID)
 	}
 }
 
