@@ -1,9 +1,0 @@
-./backup_job.go
-./cleanup_job.go
-./export_cleanup_job.go
-./notify_job.go
-./overdue_job.go
-./report_job.go
-./scheduler.go
-./stats_job.go
-./jobs_test.go

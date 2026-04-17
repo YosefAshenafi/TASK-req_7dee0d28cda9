@@ -1,6 +1,0 @@
-./exports_e2e_test.go
-./inventory_e2e_test.go
-./lifecycle_e2e_test.go
-./pages_e2e_test.go
-./rbac_e2e_test.go
-./setup_test.go
