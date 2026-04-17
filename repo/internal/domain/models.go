@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// SystemActorID is the fixed UUID of the "system" user seeded by migration
+// 009_system_user. Scheduler-originated writes (e.g. overdue-exception
+// auto-open) attribute opened_by and audit_logs.performed_by to this ID so
+// every row has a real, FK-valid actor identity.
+var SystemActorID = uuid.MustParse("00000000-0000-0000-0000-00000000f0f0")
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 type User struct {

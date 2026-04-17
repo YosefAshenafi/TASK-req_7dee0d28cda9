@@ -13,6 +13,10 @@ import (
 // ExceptionService manages fulfillment exceptions.
 type ExceptionService interface {
 	Create(ctx context.Context, fulfillmentID uuid.UUID, exType domain.ExceptionType, note string) (*domain.FulfillmentException, error)
+	// CreateSystem is used by scheduler-originated flows (e.g. overdue-check).
+	// It attributes opened_by and audit_logs.performed_by to the system actor
+	// so compliance never sees a NULL actor on auto-generated rows.
+	CreateSystem(ctx context.Context, fulfillmentID uuid.UUID, exType domain.ExceptionType, note string) (*domain.FulfillmentException, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ExceptionStatus, resolutionNote string) (*domain.FulfillmentException, error)
 	AddEvent(ctx context.Context, exceptionID uuid.UUID, eventType, content string) (*domain.ExceptionEvent, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.FulfillmentException, error)
@@ -66,6 +70,41 @@ func (s *exceptionService) Create(ctx context.Context, fulfillmentID uuid.UUID, 
 
 	if s.auditSvc != nil {
 		_ = s.auditSvc.Log(ctx, "fulfillment_exceptions", created.ID, "CREATE", nil, created)
+	}
+	return created, nil
+}
+
+// CreateSystem records an exception originated by an automated job. It stamps
+// opened_by with the seeded system user and attaches a SYSTEM audit entry so
+// every scheduler-created row satisfies the compliance audit-attribution rule.
+func (s *exceptionService) CreateSystem(ctx context.Context, fulfillmentID uuid.UUID, exType domain.ExceptionType, note string) (*domain.FulfillmentException, error) {
+	if !exType.IsValid() {
+		return nil, domain.NewValidationError("invalid exception type", map[string]string{
+			"type": "must be OVERDUE_SHIPMENT, OVERDUE_VOUCHER, or MANUAL",
+		})
+	}
+
+	systemID := domain.SystemActorID
+	ex := &domain.FulfillmentException{
+		FulfillmentID: fulfillmentID,
+		Type:          exType,
+		Status:        domain.ExceptionOpen,
+		OpenedBy:      &systemID,
+	}
+	if note != "" {
+		ex.ResolutionNote = &note
+	}
+
+	created, err := s.exceptionRepo.Create(ctx, ex)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.auditSvc != nil {
+		// Ensure the audit row is attributed to the system actor even when no
+		// userID is present on the scheduler context.
+		auditCtx := WithUserID(ctx, systemID)
+		_ = s.auditSvc.Log(auditCtx, "fulfillment_exceptions", created.ID, "SYSTEM_CREATE", nil, created)
 	}
 	return created, nil
 }

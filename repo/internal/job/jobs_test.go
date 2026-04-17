@@ -84,7 +84,7 @@ func (f *fakeReportRepo) GetByID(context.Context, uuid.UUID) (*domain.ReportExpo
 	return nil, domain.ErrNotFound
 }
 
-func (f *fakeReportRepo) List(context.Context, domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (f *fakeReportRepo) List(context.Context, repository.ReportExportFilters, domain.PageRequest) ([]domain.ReportExport, int, error) {
 	return nil, 0, nil
 }
 
@@ -128,6 +128,10 @@ func (f *fakeMessagingService) Dispatch(context.Context, uuid.UUID, uuid.UUID, [
 }
 
 func (f *fakeMessagingService) MarkPrinted(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeMessagingService) MarkFailed(context.Context, uuid.UUID, string) error {
 	return nil
 }
 
@@ -217,6 +221,43 @@ func (f *fakeExceptionRepo) UpdateStatus(context.Context, uuid.UUID, domain.Exce
 
 func (f *fakeExceptionRepo) ExistsOpenForFulfillment(_ context.Context, fulfillmentID uuid.UUID, _ domain.ExceptionType) (bool, error) {
 	return f.exists[fulfillmentID], nil
+}
+
+// fakeExceptionSvc delegates CreateSystem to a repo.Create call while
+// stamping opened_by = SystemActorID, matching the real service behavior.
+type fakeExceptionSvc struct {
+	repo repository.ExceptionRepository
+}
+
+func (s *fakeExceptionSvc) Create(ctx context.Context, fulfillmentID uuid.UUID, exType domain.ExceptionType, note string) (*domain.FulfillmentException, error) {
+	return nil, errors.New("not implemented in test")
+}
+
+func (s *fakeExceptionSvc) CreateSystem(ctx context.Context, fulfillmentID uuid.UUID, exType domain.ExceptionType, note string) (*domain.FulfillmentException, error) {
+	sys := domain.SystemActorID
+	ex := &domain.FulfillmentException{
+		FulfillmentID: fulfillmentID,
+		Type:          exType,
+		Status:        domain.ExceptionOpen,
+		OpenedBy:      &sys,
+	}
+	return s.repo.Create(ctx, ex)
+}
+
+func (s *fakeExceptionSvc) UpdateStatus(context.Context, uuid.UUID, domain.ExceptionStatus, string) (*domain.FulfillmentException, error) {
+	return nil, errors.New("not implemented in test")
+}
+
+func (s *fakeExceptionSvc) AddEvent(context.Context, uuid.UUID, string, string) (*domain.ExceptionEvent, error) {
+	return nil, errors.New("not implemented in test")
+}
+
+func (s *fakeExceptionSvc) GetByID(context.Context, uuid.UUID) (*domain.FulfillmentException, error) {
+	return nil, domain.ErrNotFound
+}
+
+func (s *fakeExceptionSvc) List(context.Context, repository.ExceptionFilters) ([]domain.FulfillmentException, error) {
+	return nil, nil
 }
 
 type fakeTierRepo struct {
@@ -380,13 +421,16 @@ func TestOverdueAndStatsJobs(t *testing.T) {
 	exRepo := &fakeExceptionRepo{exists: map[uuid.UUID]bool{voucherID: true}}
 	slaSvc := &fakeSLAService{deadline: now.Add(-time.Hour), overdue: true}
 
-	overdueJob := NewOverdueJob(fulfillRepo, exRepo, slaSvc)
+	overdueJob := NewOverdueJob(fulfillRepo, exRepo, &fakeExceptionSvc{repo: exRepo}, slaSvc)
 	created, err := overdueJob.Run(context.Background())
 	if err != nil {
 		t.Fatalf("OverdueJob.Run() error = %v", err)
 	}
 	if created != 1 || len(exRepo.created) != 1 || exRepo.created[0].Type != domain.ExceptionOverdueShipment {
 		t.Fatalf("unexpected overdue results: created=%d exceptions=%#v", created, exRepo.created)
+	}
+	if exRepo.created[0].OpenedBy == nil || *exRepo.created[0].OpenedBy != domain.SystemActorID {
+		t.Fatalf("expected OpenedBy=SystemActorID, got %v", exRepo.created[0].OpenedBy)
 	}
 
 	tierRepo := &fakeTierRepo{tiers: []domain.RewardTier{

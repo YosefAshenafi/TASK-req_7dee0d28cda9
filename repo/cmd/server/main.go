@@ -107,7 +107,7 @@ func main() {
 		}
 	}
 	registerScheduledJobs(context.Background(), sched, jobScheduleRepo,
-		fulfillRepo, tierRepo, exceptionRepo, slaSvc, messagingSvc, db, reportRepo, exportSvc, backupSvc)
+		fulfillRepo, tierRepo, exceptionRepo, exceptionSvc, slaSvc, messagingSvc, db, reportRepo, exportSvc, backupSvc)
 
 	// ── Session store ─────────────────────────────────────────────────────────
 	store := sessions.NewCookieStore([]byte(cfg.SessionSecret))
@@ -217,6 +217,7 @@ func registerScheduledJobs(
 	fulfillRepo repository.FulfillmentRepository,
 	tierRepo repository.TierRepository,
 	exceptionRepo repository.ExceptionRepository,
+	exceptionSvc service.ExceptionService,
 	slaSvc service.SLAService,
 	messagingSvc service.MessagingService,
 	db *pgxpool.Pool,
@@ -266,7 +267,7 @@ func registerScheduledJobs(
 	}
 
 	register("overdue-check", 15*time.Minute, 0, 0,
-		job.NewOverdueJob(fulfillRepo, exceptionRepo, slaSvc).Run)
+		job.NewOverdueJob(fulfillRepo, exceptionRepo, exceptionSvc, slaSvc).Run)
 	register("notify-retry", 10*time.Minute, 0, 0,
 		job.NewNotifyJob(messagingSvc, 3).Run)
 	register("cleanup", 0, 3, 0,

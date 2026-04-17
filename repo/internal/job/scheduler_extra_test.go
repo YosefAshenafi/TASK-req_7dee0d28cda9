@@ -123,7 +123,7 @@ func TestOverdueJob_SkipNilReadyAndCreateError(t *testing.T) {
 	ex := &branchExceptionRepo{createErrFor: map[uuid.UUID]bool{createErrFF.ID: true}}
 	sla := &branchSLA{}
 
-	created, err := NewOverdueJob(fulfill, ex, sla).Run(context.Background())
+	created, err := NewOverdueJob(fulfill, ex, &fakeExceptionSvc{repo: ex}, sla).Run(context.Background())
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestOverdueJob_SkipNilReadyAndCreateError(t *testing.T) {
 
 	// ListOverdue error propagates.
 	failing := &branchFulfillRepo{listErr: errors.New("list fail")}
-	if _, err := NewOverdueJob(failing, ex, sla).Run(context.Background()); err == nil {
+	if _, err := NewOverdueJob(failing, ex, &fakeExceptionSvc{repo: ex}, sla).Run(context.Background()); err == nil {
 		t.Fatal("expected list error")
 	}
 }
@@ -245,7 +245,7 @@ func (b *branchReportRepo) Create(_ context.Context, e *domain.ReportExport) (*d
 func (b *branchReportRepo) GetByID(context.Context, uuid.UUID) (*domain.ReportExport, error) {
 	return nil, domain.ErrNotFound
 }
-func (b *branchReportRepo) List(context.Context, domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (b *branchReportRepo) List(context.Context, repository.ReportExportFilters, domain.PageRequest) ([]domain.ReportExport, int, error) {
 	return nil, 0, nil
 }
 func (b *branchReportRepo) UpdateStatus(context.Context, uuid.UUID, domain.ExportStatus, *string, *int64, *string, *time.Time) error {

@@ -12,20 +12,28 @@ import (
 
 // OverdueJob scans fulfillments that should have been actioned by now and
 // opens OVERDUE exceptions if none already exist for that fulfillment+type.
+//
+// Exception creation is routed through ExceptionService.CreateSystem so every
+// auto-opened row has opened_by = system actor and an audit_logs entry — the
+// compliance requirement that nothing lands in fulfillment_exceptions without
+// a known actor.
 type OverdueJob struct {
-	fulfillRepo  repository.FulfillmentRepository
+	fulfillRepo   repository.FulfillmentRepository
 	exceptionRepo repository.ExceptionRepository
-	slaSvc       service.SLAService
+	exceptionSvc  service.ExceptionService
+	slaSvc        service.SLAService
 }
 
 func NewOverdueJob(
 	fulfillRepo repository.FulfillmentRepository,
 	exceptionRepo repository.ExceptionRepository,
+	exceptionSvc service.ExceptionService,
 	slaSvc service.SLAService,
 ) *OverdueJob {
 	return &OverdueJob{
 		fulfillRepo:   fulfillRepo,
 		exceptionRepo: exceptionRepo,
+		exceptionSvc:  exceptionSvc,
 		slaSvc:        slaSvc,
 	}
 }
@@ -67,12 +75,7 @@ func (j *OverdueJob) Run(ctx context.Context) (int, error) {
 			continue
 		}
 
-		ex := &domain.FulfillmentException{
-			FulfillmentID: f.ID,
-			Type:          exType,
-			Status:        domain.ExceptionOpen,
-		}
-		if _, err := j.exceptionRepo.Create(ctx, ex); err != nil {
+		if _, err := j.exceptionSvc.CreateSystem(ctx, f.ID, exType, "auto-opened by overdue-check"); err != nil {
 			log.Printf("overdue_job: creating exception for %s: %v", f.ID, err)
 			continue
 		}
