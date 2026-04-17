@@ -51,7 +51,10 @@ func skipIfNoDB(t *testing.T) {
 func adminUserID(t *testing.T) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
-	if err := svcPool.QueryRow(context.Background(), `SELECT id FROM users WHERE username='admin' LIMIT 1`).Scan(&id); err != nil {
+	if err := svcPool.QueryRow(
+		context.Background(),
+		`SELECT id FROM users WHERE role='ADMINISTRATOR' ORDER BY is_active DESC, created_at ASC LIMIT 1`,
+	).Scan(&id); err != nil {
 		t.Fatalf("get admin: %v", err)
 	}
 	return id

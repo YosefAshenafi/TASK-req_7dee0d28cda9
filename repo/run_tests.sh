@@ -77,6 +77,22 @@ docker run --rm \
   && echo -e " ${GREEN}ok${RESET}" \
   || echo -e " ${YELLOW}(download warnings; modules may already be cached)${RESET}"
 
+# ── generate templ Go sources for clean clones ────────────────────────────────
+echo -ne "${CYAN}Generating templ files...${RESET}"
+if docker run --rm \
+    --network docker_default \
+    -v "${REPO_ROOT}:/src" -w /src \
+    -v fulfillops_go_mod_cache:/go/pkg/mod \
+    -v fulfillops_go_build_cache:/root/.cache/go-build \
+    golang:1.23-alpine \
+    sh -c 'go run github.com/a-h/templ/cmd/templ@v0.3.819 generate ./...' >/dev/null 2>&1; then
+  echo -e " ${GREEN}done${RESET}"
+else
+  echo -e " ${RED}failed${RESET}"
+  echo -e "${RED}templ generation failed; ensure go.mod is valid and templates compile.${RESET}"
+  exit 1
+fi
+
 # ── database migrations ───────────────────────────────────────────────────────
 echo -ne "${CYAN}Running database migrations...${RESET}"
 if docker image inspect repo-app >/dev/null 2>&1; then

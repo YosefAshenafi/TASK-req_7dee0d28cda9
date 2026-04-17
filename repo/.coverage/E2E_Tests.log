@@ -1,190 +1,190 @@
-2026/04/17 12:35:41 [200] POST /api/v1/auth/login 207.858125ms (req_id=4f5eea8a-5c21-4647-b0ab-0567e4f990ee)
+2026/04/17 15:00:34 [200] POST /api/v1/auth/login 222.411792ms (req_id=896992f8-a136-480c-a5df-dd97860054aa)
 === RUN   TestExportWorkflow_CreateAndVerifyChecksum
-2026/04/17 12:35:41 [201] POST /api/v1/reports/exports 2.194917ms (req_id=c35eca5b-929f-4e4b-9f2e-783e4bbc77c5)
-2026/04/17 12:35:42 [200] GET /api/v1/reports/exports/888616da-2c77-42fa-b2e1-1bfb0fdf1e62 3.950417ms (req_id=e3f1dbae-ebae-4227-b389-2a2f579cd450)
-2026/04/17 12:35:42 [200] GET /api/v1/reports/exports/888616da-2c77-42fa-b2e1-1bfb0fdf1e62 1.710791ms (req_id=283c8134-36a0-48f7-9a19-4f2ab479826d)
-2026/04/17 12:35:42 [200] POST /api/v1/reports/exports/888616da-2c77-42fa-b2e1-1bfb0fdf1e62/verify-checksum 2.519041ms (req_id=4ead3c00-4dd3-458d-9fb8-d8a951f8d50b)
---- PASS: TestExportWorkflow_CreateAndVerifyChecksum (0.52s)
+2026/04/17 15:00:34 [201] POST /api/v1/reports/exports 2.246083ms (req_id=5361b06f-b583-4216-9390-5bb7ae24fa94)
+2026/04/17 15:00:34 [200] GET /api/v1/reports/exports/b3fec7f2-4b3e-4414-a4f3-a0f086225e04 3.800167ms (req_id=67049134-1902-403a-9562-dcf9bb05eac5)
+2026/04/17 15:00:34 [200] GET /api/v1/reports/exports/b3fec7f2-4b3e-4414-a4f3-a0f086225e04 1.080041ms (req_id=104150c8-efb0-4b89-bbd6-28cbf2cbc79a)
+2026/04/17 15:00:34 [200] POST /api/v1/reports/exports/b3fec7f2-4b3e-4414-a4f3-a0f086225e04/verify-checksum 1.262583ms (req_id=adb21552-2771-47ee-85f9-05603e4d6292)
+--- PASS: TestExportWorkflow_CreateAndVerifyChecksum (0.51s)
 === RUN   TestExportWorkflow_MultipleExportsAreListed
-2026/04/17 12:35:42 [201] POST /api/v1/reports/exports 4.275917ms (req_id=3fcc0080-bca8-4cc2-90f8-1e1fd201522d)
-2026/04/17 12:35:42 [201] POST /api/v1/reports/exports 13.601709ms (req_id=5eff3902-74fb-4817-9735-f961cc29ca4c)
-2026/04/17 12:35:42 [200] GET /api/v1/reports/exports 2.381958ms (req_id=f80bc610-63dd-480d-a8ff-5f41b6fd6783)
+2026/04/17 15:00:34 [201] POST /api/v1/reports/exports 3.664208ms (req_id=e3e3cba5-0eaa-46e2-b498-67eebe3a3db7)
+2026/04/17 15:00:34 [201] POST /api/v1/reports/exports 13.452291ms (req_id=cd80eff4-724c-41bb-9697-2f2f62b3eb39)
+2026/04/17 15:00:34 [200] GET /api/v1/reports/exports 2.824166ms (req_id=bff70604-7eec-43b4-a8bc-5b79ec670247)
 --- PASS: TestExportWorkflow_MultipleExportsAreListed (0.02s)
 === RUN   TestExceptionWorkflow
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 1.535042ms (req_id=13244e4f-57df-43d8-9356-f2c40b6c5a72)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 1.279166ms (req_id=66ad6f2f-eaae-4dc0-8cef-0120d4085b11)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 5.505125ms (req_id=6c1783b2-e17b-431f-ab73-e41432e16728)
-2026/04/17 12:35:42 [201] POST /api/v1/exceptions 1.4115ms (req_id=c5301ab4-738c-4bb3-9e0d-db9f057e85ac)
-2026/04/17 12:35:42 [201] POST /api/v1/exceptions/73ee583d-18b2-4741-a606-54e553447ca4/events 1.2695ms (req_id=e210b04f-34e6-47fa-ba2a-0e5bbfa64dcf)
-2026/04/17 12:35:42 [200] PUT /api/v1/exceptions/73ee583d-18b2-4741-a606-54e553447ca4/status 1.090875ms (req_id=a9041724-0491-405a-a784-8004af58f6b5)
-2026/04/17 12:35:42 [200] PUT /api/v1/exceptions/73ee583d-18b2-4741-a606-54e553447ca4/status 819.125µs (req_id=931891af-6d3c-4c27-9df8-1139e2a8ecad)
-2026/04/17 12:35:42 [200] PUT /api/v1/exceptions/73ee583d-18b2-4741-a606-54e553447ca4/status 949.75µs (req_id=d4dacd7b-9fb1-4c31-b40d-bae45f3f3c70)
---- PASS: TestExceptionWorkflow (0.01s)
+2026/04/17 15:00:34 [201] POST /api/v1/tiers 1.75625ms (req_id=973c2d7d-7962-4310-8336-fca5152e6469)
+2026/04/17 15:00:34 [201] POST /api/v1/customers 1.508792ms (req_id=f80bd136-f5a8-4a9d-be8c-1a3ede3c48ba)
+2026/04/17 15:00:34 [201] POST /api/v1/fulfillments 6.440125ms (req_id=1b63ddd3-8e0b-4026-91ac-90a4d5bbf261)
+2026/04/17 15:00:34 [201] POST /api/v1/exceptions 2.136333ms (req_id=bd4003ae-bc7f-47df-8dc6-51adacf10d5f)
+2026/04/17 15:00:34 [201] POST /api/v1/exceptions/393127d1-6929-4387-8061-c73b0ccfd888/events 1.308583ms (req_id=f62bff89-0293-46d5-a409-5488a61c81ab)
+2026/04/17 15:00:34 [200] PUT /api/v1/exceptions/393127d1-6929-4387-8061-c73b0ccfd888/status 1.080625ms (req_id=d048fc6a-2f2a-4824-a5c9-c581971a38f3)
+2026/04/17 15:00:34 [200] PUT /api/v1/exceptions/393127d1-6929-4387-8061-c73b0ccfd888/status 1.001ms (req_id=2fa38929-2d85-49ef-abd0-3a99b5c2e4af)
+2026/04/17 15:00:34 [200] PUT /api/v1/exceptions/393127d1-6929-4387-8061-c73b0ccfd888/status 993.708µs (req_id=bd6f992b-8228-4980-a979-48233df4c0fe)
+--- PASS: TestExceptionWorkflow (0.02s)
 === RUN   TestSettingsGetAll
-2026/04/17 12:35:42 [200] GET /api/v1/settings 904.292µs (req_id=37680718-ea0e-488c-ad66-a1bf545cddd8)
+2026/04/17 15:00:34 [200] GET /api/v1/settings 1.016875ms (req_id=cebd27a9-c449-4b2f-8818-aa90116158b4)
 --- PASS: TestSettingsGetAll (0.00s)
 === RUN   TestBlackoutDatesCreateAndDelete
-2026/04/17 12:35:42 [201] POST /api/v1/settings/blackout-dates 1.210375ms (req_id=6d740b32-e54b-4c26-8466-e9ede725ab37)
-2026/04/17 12:35:42 [204] DELETE /api/v1/settings/blackout-dates/e627bea3-e382-48dd-be56-ddbf791d566d 666.959µs (req_id=071e6ea0-14b7-45c2-8b33-6eb4a4266d2c)
---- PASS: TestBlackoutDatesCreateAndDelete (0.00s)
+2026/04/17 15:00:34 [201] POST /api/v1/settings/blackout-dates 5.791792ms (req_id=1c38bd53-5ffa-4ef3-b58f-502098c74683)
+2026/04/17 15:00:34 [204] DELETE /api/v1/settings/blackout-dates/da26d85d-63bd-4b48-9e3f-a8718aaa402b 789.959µs (req_id=f6e639c3-9de9-415c-b35c-27c48b49da62)
+--- PASS: TestBlackoutDatesCreateAndDelete (0.01s)
 === RUN   TestConcurrentInventory_ExactlyOneSucceeds
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 756.542µs (req_id=8a2dbde9-5897-474f-bbcd-ccf37067c1c6)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 630.916µs (req_id=8f5f5f3e-54e0-47f0-9f4b-546653b1835a)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 1.3465ms (req_id=6bbcd501-cb67-4f82-9d98-45a38fa7e99a)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 5.381541ms (req_id=6558160c-88a6-4306-8d19-a816d839310d)
-2026/04/17 12:35:42 [422] POST /api/v1/fulfillments 6.85875ms (req_id=c9a5ab58-c93c-4a44-bfcb-84eaab831c8e)
---- PASS: TestConcurrentInventory_ExactlyOneSucceeds (0.01s)
+2026/04/17 15:00:34 [201] POST /api/v1/tiers 966.625µs (req_id=80de012d-9b56-4a50-bc73-b58336fa99a6)
+2026/04/17 15:00:34 [201] POST /api/v1/customers 1.303667ms (req_id=109955dc-2572-44db-b6ba-280ec568b399)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 18.291959ms (req_id=512c7e72-d6d2-47fc-8e2f-1c552b813389)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 10.198209ms (req_id=01e6d34a-19ec-4ad9-8bc2-1fcbd38a4887)
+2026/04/17 15:00:35 [422] POST /api/v1/fulfillments 13.05ms (req_id=2bc47e6c-e431-4385-a602-cb3b7ca5e7f8)
+--- PASS: TestConcurrentInventory_ExactlyOneSucceeds (0.03s)
 === RUN   TestPurchaseLimitEnforced
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 684.708µs (req_id=4311c4ea-ba96-4e78-a86a-7146ea54b02e)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 599.667µs (req_id=94cbece6-a189-4558-8ebc-e30394811071)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.973542ms (req_id=dbe5f643-03a5-457c-80f6-923ee03408f1)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.230375ms (req_id=d31fd059-438b-47a1-a5af-07ee6bd7bf08)
-2026/04/17 12:35:42 [422] POST /api/v1/fulfillments 455.792µs (req_id=b5c69006-b025-492e-8f08-3c0174461b61)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 1.252625ms (req_id=f094d447-d807-4ba4-b8b3-0ae5d5a9ad45)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 1.141958ms (req_id=4dd093f0-18bb-425e-b577-f7e586bb3238)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 3.892375ms (req_id=a1eeec52-8f63-41c0-9d47-6dd6af5277df)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 2.853292ms (req_id=99642998-7f1f-44e7-bcca-161550c10fd2)
+2026/04/17 15:00:35 [422] POST /api/v1/fulfillments 572.125µs (req_id=2c831d0b-2f45-4a06-bbe7-b5443cc34bd5)
 --- PASS: TestPurchaseLimitEnforced (0.01s)
 === RUN   TestCanceledFulfillmentsDoNotCountTowardLimit
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 518.208µs (req_id=0436d946-1838-4be4-95a9-9bc8a15dd397)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 672.459µs (req_id=955b2ff5-6b3b-44ee-856f-cc06f1896bb2)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.166084ms (req_id=ffe64ee6-7319-4719-856a-9ba0127057ec)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/94c7ab67-5c66-45a7-8474-154ac9f5e809 308.25µs (req_id=fee049c8-535e-4e08-8953-9ea50dba407e)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/94c7ab67-5c66-45a7-8474-154ac9f5e809/transition 2.541917ms (req_id=e13edc8e-d34b-413e-a090-90194a7d0745)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/94c7ab67-5c66-45a7-8474-154ac9f5e809 186.042µs (req_id=27dfeb5a-4f6b-4291-acbc-72553e49ed47)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/94c7ab67-5c66-45a7-8474-154ac9f5e809/transition 1.63325ms (req_id=a7c55219-fca9-43e5-b49d-9f8015ba12ec)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.202542ms (req_id=57475f1d-8b51-44ed-a0c7-8f5c157e113d)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/399ccbab-51d3-46c6-9f71-d0b4cdee43e7 185.167µs (req_id=80b227c2-ecc3-441f-a011-a665adc0ff75)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/399ccbab-51d3-46c6-9f71-d0b4cdee43e7/transition 1.58275ms (req_id=0b1489c0-2cde-46d9-824a-f8340ece12a4)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/399ccbab-51d3-46c6-9f71-d0b4cdee43e7 158.375µs (req_id=56364982-07f7-4b86-8e60-d910793be655)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/399ccbab-51d3-46c6-9f71-d0b4cdee43e7/transition 1.038292ms (req_id=c4d8e91f-9777-4f13-b04d-7bb4ac02f9a9)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.097375ms (req_id=7b68d40c-e716-490a-a53f-7287d41ff6c5)
---- PASS: TestCanceledFulfillmentsDoNotCountTowardLimit (0.01s)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 667.834µs (req_id=d72bab32-73c4-4633-8804-862e6ee1a4fb)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 653.292µs (req_id=c402d1ea-c861-4c11-a2da-b10b7d019dcb)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 2.349916ms (req_id=494f1f8c-a3ab-4ec7-9fe7-d615a540cdc7)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/3121a323-6fe0-40c4-88b3-27fea6778dcb 674.125µs (req_id=68326acd-de03-49b7-abfb-8fc45a7849f3)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/3121a323-6fe0-40c4-88b3-27fea6778dcb/transition 4.981917ms (req_id=f5d413b9-4811-4b7d-803e-18cd853a7bd9)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/3121a323-6fe0-40c4-88b3-27fea6778dcb 408.5µs (req_id=fda4456d-9386-4e4d-89eb-de4767cb9e8b)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/3121a323-6fe0-40c4-88b3-27fea6778dcb/transition 3.186291ms (req_id=8faf044b-fb9b-4187-bbb7-161688159563)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 2.130375ms (req_id=db79a3f6-4211-4f06-8978-7e57fd6d707f)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4caac611-a8ee-43f6-8184-a14550854be1 296.209µs (req_id=40810f37-0c94-4a57-bb1a-c60dec7b379a)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4caac611-a8ee-43f6-8184-a14550854be1/transition 1.807458ms (req_id=d239192a-dc20-40df-a366-27c47c98fb68)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4caac611-a8ee-43f6-8184-a14550854be1 328.333µs (req_id=94bb93a2-55d0-437f-9557-83284e544986)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4caac611-a8ee-43f6-8184-a14550854be1/transition 2.217084ms (req_id=d15bd8e5-66a8-4625-b752-96463130a8a0)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 2.192375ms (req_id=225bc4a9-671b-4e2f-b42d-ad6046984b3f)
+--- PASS: TestCanceledFulfillmentsDoNotCountTowardLimit (0.02s)
 === RUN   TestVersionConflict_Tier
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 486.25µs (req_id=5f0e583a-5229-422e-b57a-ce2e52bf0b71)
-2026/04/17 12:35:42 [200] PUT /api/v1/tiers/53eb55c0-2a20-4b7d-a48f-f428faf61002 632.125µs (req_id=fbedc14f-a3e4-4d25-8190-2cacd3f41ed9)
-2026/04/17 12:35:42 [409] PUT /api/v1/tiers/53eb55c0-2a20-4b7d-a48f-f428faf61002 165.667µs (req_id=cd91df3d-2ffb-4008-805b-a2a912d2d7a8)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 1.494958ms (req_id=896d8258-a3f0-4b3b-a20b-34d47531d24a)
+2026/04/17 15:00:35 [200] PUT /api/v1/tiers/353399a2-3d55-4998-81d2-e81fa5389b4b 1.282833ms (req_id=cba8b0d5-d921-4660-aebb-251f3be4f2a3)
+2026/04/17 15:00:35 [409] PUT /api/v1/tiers/353399a2-3d55-4998-81d2-e81fa5389b4b 316.041µs (req_id=906388ce-5272-4fb2-b90d-fb586e9e839e)
 --- PASS: TestVersionConflict_Tier (0.00s)
 === RUN   TestPhysicalFulfillmentLifecycle
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 431.458µs (req_id=ed53c89f-449d-44f7-809e-f7e28849e287)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 413.208µs (req_id=24e93665-af14-4737-ad07-136e304b1cef)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.115083ms (req_id=fbb85875-5954-4592-96c1-a6a7b4aeef9b)
-2026/04/17 12:35:42 [200] GET /api/v1/tiers/de66eb00-9018-43e1-897e-20ac68b045b9 129.709µs (req_id=c907e7a6-8152-4e12-b6f9-6d7fb8a5ec47)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c 136.291µs (req_id=3bda49fd-246c-44fb-bd37-07c93b648222)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c/transition 812.291µs (req_id=4045233d-893f-402f-bd33-1c14803aa0b8)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c 139.458µs (req_id=bbaf0da2-3fc1-48bf-90ad-586e82b68f9d)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c/transition 666.75µs (req_id=2cec4e84-a3a0-4978-9b24-b60e16c71cfd)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c 135.042µs (req_id=9ec374e6-80cd-4bc0-8364-c8c6ec27022f)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c/transition 927.208µs (req_id=4959d954-e88c-459d-9806-cf07c5a9d8b8)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c 138.084µs (req_id=d6114885-d4cf-4a1d-a547-006509f205c4)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c/transition 598.875µs (req_id=447393e2-cb41-4365-ab0f-6abfdc68ddab)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/cfff9ac9-f187-4c1c-9e88-04bfcd77e84c/timeline 320.042µs (req_id=fabc0984-784b-47b6-a70c-5682f194fa65)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 850.209µs (req_id=f86a69aa-fd1e-4bf0-b4fa-ad43cd0b5cca)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 850.291µs (req_id=7014c8d2-1a36-4dfb-9bd8-e7ca89012e82)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 2.066583ms (req_id=ef5b446d-0ff5-473c-851b-d409a342a393)
+2026/04/17 15:00:35 [200] GET /api/v1/tiers/19cda607-e925-4e50-a9c0-f812853e780c 300.167µs (req_id=c28dae12-b56b-41bc-b30d-fcf99e6b702b)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9 236.75µs (req_id=ba348ad0-cf72-4ec5-95a8-864cbc73234d)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9/transition 2.101291ms (req_id=e94974e8-3db6-4ae0-8c39-7985e9987223)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9 249.708µs (req_id=9ff2e43c-a32f-4099-ba3e-ed8429347836)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9/transition 2.443042ms (req_id=67b28baf-3da0-4e4c-90e7-6bb768d91f56)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9 295.584µs (req_id=93c58fe7-49af-458d-8ddc-a2fa71c2b6b3)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9/transition 1.271542ms (req_id=dbf8b229-b143-4d0d-8c22-3808a9895528)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9 196.833µs (req_id=5f3cce77-a5ab-41f1-b129-4643697dc592)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9/transition 1.479ms (req_id=881f5c57-faae-4f3f-8a08-2ec62c4d58cf)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/4d46d943-9f99-4771-aca3-8d093c7bccf9/timeline 905.041µs (req_id=01d41592-d243-4ee7-ac8b-7bc491292ea1)
 --- PASS: TestPhysicalFulfillmentLifecycle (0.01s)
 === RUN   TestVoucherFulfillmentLifecycle
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 426µs (req_id=8f320965-7e4e-45b8-bf85-91a3f84a31d3)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 403.459µs (req_id=57154003-d47b-417d-be61-f47d55a15f3a)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 843.625µs (req_id=c5bcc82d-bd48-49de-8d40-b7450e52580b)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7 138.167µs (req_id=0fdb0865-0505-4498-9e72-7a63a60733ec)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7/transition 844.625µs (req_id=dd4489dd-ff09-420e-b2fa-dc6ccbb54e8d)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7 139µs (req_id=4d6ea793-260f-4b1f-b435-4ab6cc846d35)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7/transition 751.125µs (req_id=75d778ab-6657-4da2-9fde-f0012fba429e)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7 136.667µs (req_id=93cffe60-bff2-4ecd-a929-f8c050962945)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/8ef0fdda-c12b-4e67-8d88-5baea7256dc7/transition 624.375µs (req_id=e7e08d6e-e3d5-49b6-b6fe-5a02f7b898a1)
---- PASS: TestVoucherFulfillmentLifecycle (0.00s)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 1.921709ms (req_id=f2575ce5-73f4-4eac-a772-da573432f6c9)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 645.291µs (req_id=2ab34755-b48e-4218-81f3-b93f8cb31bd1)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 1.623958ms (req_id=c5579d79-f9b9-4177-9668-ae4845bceea9)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a 244.625µs (req_id=4eb9b0e5-c4e7-4cf9-ab31-7bec60100402)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a/transition 1.204458ms (req_id=1735a078-f8f5-455f-ba9f-776d43d6e361)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a 284µs (req_id=94036a2e-c553-4d4d-a492-d29de7f1ddbe)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a/transition 1.477375ms (req_id=6cf34038-38c5-42ee-b45d-29f0e41846da)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a 180.25µs (req_id=b468939b-ace5-4d80-b7ee-251883fac49b)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/302102fb-b156-4054-b120-faa6a37ba05a/transition 1.273375ms (req_id=1310273b-3e2b-4155-9831-3de0ad21f57f)
+--- PASS: TestVoucherFulfillmentLifecycle (0.01s)
 === RUN   TestCancelRestoresInventory
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 410.333µs (req_id=2cf80367-8506-4801-a0fa-f0586f92e35b)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 363.125µs (req_id=bf404abb-1f71-44f8-9c9c-549cb9286484)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.12125ms (req_id=aa575ba8-b52a-4198-aef5-0196bfa0f46e)
-2026/04/17 12:35:42 [200] GET /api/v1/tiers/36db4180-69ff-4204-b3d7-aaba79f46368 141.375µs (req_id=5c09eb1d-05f3-484a-a98d-b20d22f81a90)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/588dc7b0-54f0-4bc9-9b48-7385e28e9893 122.167µs (req_id=013b2a4e-fed8-432f-a847-7c32753c27ba)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/588dc7b0-54f0-4bc9-9b48-7385e28e9893/transition 1.42175ms (req_id=cda8a628-0cc0-4ea8-926b-5194d79bee5e)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/588dc7b0-54f0-4bc9-9b48-7385e28e9893 145.834µs (req_id=42fff19d-fcd6-4bca-b711-3fb519a8c91a)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/588dc7b0-54f0-4bc9-9b48-7385e28e9893/transition 768.166µs (req_id=828d3c5a-8ef6-450c-99ab-473b063dd086)
-2026/04/17 12:35:42 [200] GET /api/v1/tiers/36db4180-69ff-4204-b3d7-aaba79f46368 117.5µs (req_id=c9934896-bf1f-4065-a5a2-8c8d92c558e8)
---- PASS: TestCancelRestoresInventory (0.00s)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 627.958µs (req_id=d391f205-61ef-4063-922e-7558e452a20d)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 413.417µs (req_id=3f88a76f-67a4-4b8d-8291-0cdc82d6eea2)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 1.020708ms (req_id=bc985a44-cf8b-4330-9d1a-af3bae9271f6)
+2026/04/17 15:00:35 [200] GET /api/v1/tiers/a6c81b9c-ae44-419c-b4ce-d7a61ee26ffc 208.708µs (req_id=84ab68d8-e386-429d-8e4a-61b3f09193c7)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/734d8d02-f538-4974-b140-addc74e3cba6 200.959µs (req_id=5836137a-d502-41d2-9faf-c4ff7b3df0a4)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/734d8d02-f538-4974-b140-addc74e3cba6/transition 1.1335ms (req_id=8354a1e7-d7eb-490c-8034-eaa670e4c82f)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/734d8d02-f538-4974-b140-addc74e3cba6 131.125µs (req_id=1f15818e-2e4b-43be-9be5-23dfa47a73ac)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/734d8d02-f538-4974-b140-addc74e3cba6/transition 906.542µs (req_id=b0e1284c-2f2c-4bd4-a90c-3fdcbbd4d061)
+2026/04/17 15:00:35 [200] GET /api/v1/tiers/a6c81b9c-ae44-419c-b4ce-d7a61ee26ffc 185.459µs (req_id=f2270a17-93d3-4219-a14f-b47650f79113)
+--- PASS: TestCancelRestoresInventory (0.01s)
 === RUN   TestOnHoldAndResume
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 393.708µs (req_id=97aa5690-f62c-4c27-92d1-71c3d780a899)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 345µs (req_id=6133ffe9-dc0e-4f0d-b8fc-3510d84b4ee1)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.417291ms (req_id=32c8b5a1-8de3-48a5-818f-5feaac73c011)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51 131.542µs (req_id=11a2cb95-ea1c-4705-93ff-1f9f1ca3e1ca)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51/transition 703.291µs (req_id=b6a24406-89c9-4679-b8a9-2b46ce968f82)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51 121.292µs (req_id=d095795d-fc2a-482c-a22c-d004d3725e44)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51/transition 850.75µs (req_id=449b06dc-5c40-4d73-ba15-20ca4f493ddc)
-2026/04/17 12:35:42 [200] GET /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51 119.5µs (req_id=93e155b8-2559-43aa-b507-adcf55a49840)
-2026/04/17 12:35:42 [200] POST /api/v1/fulfillments/c981d2da-cd55-4a69-989d-f1e6383c4f51/transition 669.583µs (req_id=ceb444c9-b59e-4911-a549-eefabfc72a12)
---- PASS: TestOnHoldAndResume (0.00s)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 390.041µs (req_id=a46400c1-f348-4cf2-bfa1-22c8d8881c79)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 341.708µs (req_id=77838c92-2738-437e-a616-06e65c615f82)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 1.283333ms (req_id=805146ba-b049-49f9-ab8d-08a57248f984)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28 150.792µs (req_id=d3d9aa3a-462c-49f3-98dc-e0a2e8153fdd)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28/transition 851µs (req_id=c9c6ecb1-4877-4b29-aeca-fb594a2ce586)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28 165.542µs (req_id=b40d9db9-4fe1-4be9-aca0-3a7db8dca887)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28/transition 732.792µs (req_id=288a2220-2ed8-4e7f-a221-fe646ca54253)
+2026/04/17 15:00:35 [200] GET /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28 437.958µs (req_id=e5233843-0fbd-4eb4-8e71-d6d7d4ee7bc6)
+2026/04/17 15:00:35 [200] POST /api/v1/fulfillments/ec765222-09ad-4780-a814-db3d0c14ef28/transition 1.002583ms (req_id=d8752826-0388-4046-8b9a-5ccdc1093a1f)
+--- PASS: TestOnHoldAndResume (0.01s)
 === RUN   TestTierSoftDeleteAndRestore
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 331.709µs (req_id=17c08a27-bd42-4c1d-9da2-264705596877)
-2026/04/17 12:35:42 [204] DELETE /api/v1/tiers/23f7c204-031f-493c-aa08-3ec6369fdf1e 469.334µs (req_id=254d881d-f9b6-478f-a8e4-239ccb200225)
-2026/04/17 12:35:42 [404] GET /api/v1/tiers/23f7c204-031f-493c-aa08-3ec6369fdf1e 120.708µs (req_id=7eac6051-7f9f-49f5-a356-ceccbdffab88)
-2026/04/17 12:35:42 [200] POST /api/v1/tiers/23f7c204-031f-493c-aa08-3ec6369fdf1e/restore 648.917µs (req_id=37720e6a-a8a9-45ca-b247-604becbdf307)
-2026/04/17 12:35:42 [200] GET /api/v1/tiers/23f7c204-031f-493c-aa08-3ec6369fdf1e 111.833µs (req_id=2c184892-18f0-4486-b123-953c8c6e6f58)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 470.583µs (req_id=6ee0ca82-1674-42d3-9e96-6490681e1fce)
+2026/04/17 15:00:35 [204] DELETE /api/v1/tiers/086dbdf8-d510-4b90-a337-4d26729adccb 570.542µs (req_id=4b7e7170-4dea-4280-8980-6b0a0bd0daef)
+2026/04/17 15:00:35 [404] GET /api/v1/tiers/086dbdf8-d510-4b90-a337-4d26729adccb 132.042µs (req_id=e42f303c-440b-4d49-ae49-4b1d01a8c1d6)
+2026/04/17 15:00:35 [200] POST /api/v1/tiers/086dbdf8-d510-4b90-a337-4d26729adccb/restore 814.125µs (req_id=f141324e-989d-4405-bc4b-99c3d0a5c3ec)
+2026/04/17 15:00:35 [200] GET /api/v1/tiers/086dbdf8-d510-4b90-a337-4d26729adccb 105.125µs (req_id=8932b61a-1720-4c89-b90f-01e30a0c2c5b)
 --- PASS: TestTierSoftDeleteAndRestore (0.00s)
 === RUN   TestPageRoutesRender
-2026/04/17 12:35:42 [303] POST /auth/login 210.465ms (req_id=f5fac9f9-f893-4752-bd06-88b1d05f4226)
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 1.364166ms (req_id=d679d290-d053-4608-ace0-48854ffa643f)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 633.083µs (req_id=5220f343-91ab-4b70-94c9-20c47cbc11a6)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 2.224875ms (req_id=ddd86275-f3d7-4054-a623-df8651bbea25)
-2026/04/17 12:35:42 [201] POST /api/v1/exceptions 879µs (req_id=8a795649-fc38-4f4c-9086-c8962fa60c5b)
-2026/04/17 12:35:42 [201] POST /api/v1/message-templates 608.625µs (req_id=409ea8b0-6118-4676-a290-7db672200c1d)
-2026/04/17 12:35:42 [201] POST /api/v1/admin/users 56.627291ms (req_id=6d287f51-c527-46df-a55b-f39a762791a8)
-2026/04/17 12:35:42 [200] GET / 7.034041ms (req_id=a685e440-949d-4164-856c-50362308d6f9)
-2026/04/17 12:35:42 [200] GET /tiers 4.3785ms (req_id=be6edb2c-1f05-4682-8be0-b957370cb379)
-2026/04/17 12:35:42 [200] GET /tiers/42ae9672-07c9-4c4d-a71c-edb0e1340d94 218.208µs (req_id=f730cc0e-e8c8-4451-8b2b-d83c86575db2)
-2026/04/17 12:35:42 [200] GET /tiers/new 122.625µs (req_id=1563a918-86a5-42b9-9ab7-1a9cc25d302d)
-2026/04/17 12:35:42 [200] GET /tiers/42ae9672-07c9-4c4d-a71c-edb0e1340d94/edit 186.375µs (req_id=c77bd729-a3db-4ea5-b5d9-689719ff8977)
-2026/04/17 12:35:42 [200] GET /customers 676.25µs (req_id=ddb6e71a-7e7d-4f26-8567-979a1c997056)
-2026/04/17 12:35:42 [200] GET /customers/bbd3174d-2c32-45a7-ac4a-d9acd2be1a62 587.708µs (req_id=7190feea-5a3e-4fe9-9efc-b301fdfd4980)
-2026/04/17 12:35:42 [200] GET /customers/new 115.791µs (req_id=bb878153-6212-4e8a-b9fa-78aaedeeb120)
-2026/04/17 12:35:42 [200] GET /customers/bbd3174d-2c32-45a7-ac4a-d9acd2be1a62/edit 250.959µs (req_id=56104b1d-1044-4450-a6bb-ed65f93557f1)
-2026/04/17 12:35:42 [200] GET /fulfillments 5.290709ms (req_id=35607523-42d4-4832-9cc9-1d40c1e52c89)
-2026/04/17 12:35:42 [200] GET /fulfillments/9a83ce16-f3c2-4607-a9f8-36734abbf8fd 920.583µs (req_id=eebb9fbb-4f82-458d-9c1c-b126659392d7)
-2026/04/17 12:35:42 [200] GET /fulfillments/new 4.610375ms (req_id=430dc655-58d5-4733-a858-e196460445ed)
-2026/04/17 12:35:42 [200] GET /exceptions 1.186417ms (req_id=2aaea39d-891e-469b-a425-61602d2a475a)
-2026/04/17 12:35:42 [200] GET /exceptions/8f307af5-9c3e-4d68-a662-8cf677d2916f 606.833µs (req_id=86a7ee9f-d18d-422d-af40-9bd283f36a57)
-2026/04/17 12:35:42 [200] GET /messages 754.833µs (req_id=665ab494-f57d-4b92-951a-a2d7a3fb4c51)
-2026/04/17 12:35:42 [200] GET /messages/templates/new 95.166µs (req_id=82bb81a3-34e0-4d43-8eca-ceeadb067667)
-2026/04/17 12:35:42 [200] GET /messages/templates/6df98cb1-aa37-485f-914c-c3c4eee6af56/edit 277.125µs (req_id=30a7cd9c-f430-423c-8b59-465e42e1ecb3)
-2026/04/17 12:35:42 [200] GET /messages/send-logs 538.709µs (req_id=1b511cfe-0ffe-4c82-a00d-397596cec13c)
-2026/04/17 12:35:42 [200] GET /messages/handoff 380.583µs (req_id=e2811e6f-7f6c-4db2-88ec-4379153fea2a)
-2026/04/17 12:35:42 [200] GET /notifications 700.625µs (req_id=069e67cc-42ba-4a7d-ab8b-c3c0557d8a5e)
-2026/04/17 12:35:42 [200] GET /reports 85.458µs (req_id=55f71d2b-ba95-4d32-a0a9-4319444a69f5)
-2026/04/17 12:35:42 [200] GET /reports/history 432.834µs (req_id=eb4cfffa-01fd-4c3a-b5e2-7005b358a44b)
-2026/04/17 12:35:42 [200] GET /audit 2.61825ms (req_id=23f4dad7-73e7-4e14-b19c-849edab7fdbc)
-2026/04/17 12:35:42 [200] GET /settings 660µs (req_id=f9c33b75-90a8-40a9-9d73-738d3d68d0c5)
-2026/04/17 12:35:42 [200] GET /settings/blackout-dates 477.625µs (req_id=62b00c74-a8be-4eb4-b615-633c498ce429)
-2026/04/17 12:35:42 [200] GET /admin/health 695.333µs (req_id=57ead5d3-6de4-4ae7-b3ec-0436f0583b92)
-2026/04/17 12:35:42 [200] GET /admin/users 1.940833ms (req_id=4383b737-d977-4619-ac7e-21c94d0e5dbc)
-2026/04/17 12:35:42 [200] GET /admin/users/new 160.792µs (req_id=246e9b68-6c13-4242-954c-9ff0f2baa955)
-2026/04/17 12:35:42 [200] GET /admin/users/e8d37460-b2d8-423a-8569-1060094c0ec9/edit 240.292µs (req_id=916151d7-577f-42cd-8375-57ca807e11ca)
-2026/04/17 12:35:42 [200] GET /admin/recovery 5.575791ms (req_id=7577df6f-ab10-4ed8-9ac4-cc6f07146626)
-2026/04/17 12:35:42 [200] GET /admin/backups 190.25µs (req_id=73f74895-2863-4e3e-8aed-4a4f341c5ba8)
-2026/04/17 12:35:42 [303] POST /auth/logout 30.917µs (req_id=21124feb-715b-4092-8c17-e9c223da855e)
+2026/04/17 15:00:35 [303] POST /auth/login 213.082167ms (req_id=4d1559fc-64f9-4018-91f0-f3bbc210b9da)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 772.458µs (req_id=a5b8139b-5af9-4de4-9f92-a666a32fa352)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 558.333µs (req_id=4391bd36-8323-4989-a97e-b5f1b25f34e9)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 1.203458ms (req_id=1bb6fca0-95cd-412a-899b-bb47dfa5522d)
+2026/04/17 15:00:35 [201] POST /api/v1/exceptions 868.375µs (req_id=6c5b58a6-c287-4652-8ac0-a8aff9fd19c2)
+2026/04/17 15:00:35 [201] POST /api/v1/message-templates 677.75µs (req_id=95ba7215-058b-445e-9fde-7ade5072f860)
+2026/04/17 15:00:35 [201] POST /api/v1/admin/users 51.923167ms (req_id=1603bc71-e5f0-420f-9315-7ec694007abf)
+2026/04/17 15:00:35 [200] GET / 7.196709ms (req_id=dc2eb290-c13e-4288-9790-42e0df45c1b1)
+2026/04/17 15:00:35 [200] GET /tiers 4.223583ms (req_id=ea593de9-40b3-4a58-8bed-b4f8516ae369)
+2026/04/17 15:00:35 [200] GET /tiers/01af1d2d-5ea2-4004-930d-c2cdfb4b88f5 218.542µs (req_id=5e65b4f4-4721-4c39-b37a-b42738cdceb0)
+2026/04/17 15:00:35 [200] GET /tiers/new 128.625µs (req_id=07c5acaa-f8e0-4442-8959-1601b73482d3)
+2026/04/17 15:00:35 [200] GET /tiers/01af1d2d-5ea2-4004-930d-c2cdfb4b88f5/edit 223.625µs (req_id=e3965d2c-c2f2-465f-a908-22b5f1212372)
+2026/04/17 15:00:35 [200] GET /customers 791.583µs (req_id=8d1f6622-dd55-4936-9759-149cc1adfc20)
+2026/04/17 15:00:35 [200] GET /customers/5a8f2494-c2ca-4a84-a69c-4435336e179f 593.25µs (req_id=6676f2d0-f9e4-455c-9fa0-fd446a998388)
+2026/04/17 15:00:35 [200] GET /customers/new 111.125µs (req_id=39f0391b-3511-44ae-8d40-394ce40af2d3)
+2026/04/17 15:00:35 [200] GET /customers/5a8f2494-c2ca-4a84-a69c-4435336e179f/edit 203.459µs (req_id=e7cb035d-fcff-4070-bff4-25c53941967d)
+2026/04/17 15:00:35 [200] GET /fulfillments 5.407542ms (req_id=586df88a-08c9-490b-afdf-88f74a77829e)
+2026/04/17 15:00:35 [200] GET /fulfillments/1f94d8f9-bf98-4603-9d52-4e4c2ce31179 1.034709ms (req_id=4b14c550-d2de-47c5-8ce9-f54675222880)
+2026/04/17 15:00:35 [200] GET /fulfillments/new 5.179708ms (req_id=e740dbe8-e6aa-4a1f-adc3-0b69f6afaf27)
+2026/04/17 15:00:35 [200] GET /exceptions 834.167µs (req_id=d5d02470-2ba0-4b44-b77e-a7c982a47e4e)
+2026/04/17 15:00:35 [200] GET /exceptions/324ff137-3342-47f2-afee-58cdf4984f49 626.208µs (req_id=59f60a54-dc25-4652-8418-5d883c392413)
+2026/04/17 15:00:35 [200] GET /messages 1.127542ms (req_id=b8306922-0b89-41a5-bf24-fbb1b2ee0f41)
+2026/04/17 15:00:35 [200] GET /messages/templates/new 113.209µs (req_id=939c1959-256b-4f19-b1b0-db7ae0c12f65)
+2026/04/17 15:00:35 [200] GET /messages/templates/18570d23-db32-4964-a8ac-8a3dc37fed79/edit 272.417µs (req_id=c8be061b-39e1-491e-8f34-f34f1e3adf24)
+2026/04/17 15:00:35 [200] GET /messages/send-logs 573µs (req_id=9530bfb8-62a9-4fb8-891e-7479e449045f)
+2026/04/17 15:00:35 [200] GET /messages/handoff 367.375µs (req_id=305ab8a2-79d0-4a7a-acb3-f64a56c06555)
+2026/04/17 15:00:35 [200] GET /notifications 857.959µs (req_id=2cbf92db-b470-44f4-9116-64a2f55e8987)
+2026/04/17 15:00:35 [200] GET /reports 102.208µs (req_id=4646a999-7603-4398-ac9a-6946d094a115)
+2026/04/17 15:00:35 [200] GET /reports/history 454µs (req_id=310dc471-5f7e-4518-9b6f-28ab9d015e67)
+2026/04/17 15:00:35 [200] GET /audit 5.043709ms (req_id=fcb45ea4-5e92-4534-9ac3-06be8b8ee45a)
+2026/04/17 15:00:35 [200] GET /settings 640.584µs (req_id=5e8c7e70-d4c9-43c9-a969-80e94d21b006)
+2026/04/17 15:00:35 [200] GET /settings/blackout-dates 518.042µs (req_id=4bc96a15-1870-4c33-ae86-bc3e49b0276a)
+2026/04/17 15:00:35 [200] GET /admin/health 1.016833ms (req_id=8e5de37a-10fc-491a-a631-e5b692ccc704)
+2026/04/17 15:00:35 [200] GET /admin/users 2.997708ms (req_id=efa77c7a-0647-41a9-b693-d983f69b8d6a)
+2026/04/17 15:00:35 [200] GET /admin/users/new 118.125µs (req_id=88769eaa-e0d7-487e-ada6-5fb1a0dc452e)
+2026/04/17 15:00:35 [200] GET /admin/users/a7f7ec37-3a53-48dc-9a22-7238dbb44d13/edit 178.458µs (req_id=b74d9731-d6cf-40a1-a91e-de87cc8ffdcf)
+2026/04/17 15:00:35 [200] GET /admin/recovery 6.202375ms (req_id=c3526dda-788b-49e5-a878-5f446bf0b830)
+2026/04/17 15:00:35 [200] GET /admin/backups 193.541µs (req_id=69050afc-0f47-435f-93c0-deabc6628fde)
+2026/04/17 15:00:35 [303] POST /auth/logout 24.042µs (req_id=f6233591-8374-4c67-9d24-741855efe8e8)
 --- PASS: TestPageRoutesRender (0.32s)
 === RUN   TestRBAC_SpecialistCanReadButNotDeleteTiers
-2026/04/17 12:35:42 [200] POST /api/v1/auth/login 51.512417ms (req_id=cc348984-4658-4c13-9102-7b6bc7a0eb78)
-2026/04/17 12:35:42 [200] GET /api/v1/tiers 6.683ms (req_id=339d0686-9d76-4b26-ada3-a77d2d33261c)
-2026/04/17 12:35:42 [403] DELETE /api/v1/tiers/00000000-0000-0000-0000-000000000001 151.167µs (req_id=aa0ae06d-4904-4ac9-a03b-f5300699b68e)
-2026/04/17 12:35:42 [403] GET /api/v1/admin/health 104.875µs (req_id=bb2c0da1-a3ad-4abb-8d2d-2a7b1b018ad2)
---- PASS: TestRBAC_SpecialistCanReadButNotDeleteTiers (0.13s)
+2026/04/17 15:00:35 [200] POST /api/v1/auth/login 52.62275ms (req_id=04d259d1-8130-4248-b3dc-37b3b0b7bfb8)
+2026/04/17 15:00:35 [200] GET /api/v1/tiers 7.234ms (req_id=ea005630-b92f-434a-814a-e7ad4035e414)
+2026/04/17 15:00:35 [403] DELETE /api/v1/tiers/00000000-0000-0000-0000-000000000001 448.167µs (req_id=5a7d73b3-2bc3-4863-be51-1dfdccf7bbd9)
+2026/04/17 15:00:35 [403] GET /api/v1/admin/health 120.625µs (req_id=1c087220-2dc7-44f8-b2de-08bbeadf8fe8)
+--- PASS: TestRBAC_SpecialistCanReadButNotDeleteTiers (0.12s)
 === RUN   TestRBAC_AuditorCanReadAuditButNotCreateTier
-2026/04/17 12:35:42 [200] POST /api/v1/auth/login 51.134458ms (req_id=57fdb7b0-3808-4dcb-bcce-a1bc5dc66a85)
-2026/04/17 12:35:42 [200] GET /api/v1/audit 1.838667ms (req_id=33c9b090-4604-4dae-822b-f11ab29346d0)
-2026/04/17 12:35:42 [403] POST /api/v1/tiers 104.459µs (req_id=40dedaf7-9327-458f-9b0d-9c42dc1410cc)
-2026/04/17 12:35:42 [403] POST /api/v1/fulfillments 96.125µs (req_id=875e5663-faa5-4c0a-bf3b-239e213c0ef8)
+2026/04/17 15:00:35 [200] POST /api/v1/auth/login 54.074917ms (req_id=313d6146-865d-49cb-a2be-88a879956ecb)
+2026/04/17 15:00:35 [200] GET /api/v1/audit 2.1215ms (req_id=0170511a-bda3-4547-aa66-7930d4135373)
+2026/04/17 15:00:35 [403] POST /api/v1/tiers 115.584µs (req_id=2bb6a7f8-3a12-47cf-8908-2ada98f2e0c4)
+2026/04/17 15:00:35 [403] POST /api/v1/fulfillments 96.334µs (req_id=fb35697f-3f8b-4081-939e-ddd73400c491)
 --- PASS: TestRBAC_AuditorCanReadAuditButNotCreateTier (0.11s)
 === RUN   TestRBAC_UnauthenticatedReturns401
-2026/04/17 12:35:42 [401] GET /api/v1/tiers 12.75µs (req_id=7280cf8a-1bac-46de-97ed-f143dafbf35f)
-2026/04/17 12:35:42 [401] GET /api/v1/customers 1.416µs (req_id=cf79244a-15d7-425f-bc67-48086fe52c98)
-2026/04/17 12:35:42 [401] GET /api/v1/fulfillments 1.167µs (req_id=aadb0260-e2f3-4139-adb4-521522bf7bd0)
-2026/04/17 12:35:42 [401] GET /api/v1/audit 667ns (req_id=c547b78b-5183-4e9c-a2a4-6acb437b452a)
-2026/04/17 12:35:42 [401] GET /api/v1/auth/me 833ns (req_id=f75bf778-9090-4e1e-9071-2d25219122ce)
+2026/04/17 15:00:35 [401] GET /api/v1/tiers 2.333µs (req_id=45274783-7421-44b9-9294-54f6665bba97)
+2026/04/17 15:00:35 [401] GET /api/v1/customers 1.417µs (req_id=40601e12-4815-47b3-8c0e-3d967b17f2a6)
+2026/04/17 15:00:35 [401] GET /api/v1/fulfillments 834ns (req_id=a93db01f-7386-49f6-abd6-a08fa26d2e0b)
+2026/04/17 15:00:35 [401] GET /api/v1/audit 1.333µs (req_id=cd957e21-83d2-4487-9795-608d8198930f)
+2026/04/17 15:00:35 [401] GET /api/v1/auth/me 916ns (req_id=264bc624-a1f5-49b5-aca5-b59b92422b46)
 --- PASS: TestRBAC_UnauthenticatedReturns401 (0.00s)
 === RUN   TestRBAC_SpecialistCanCreateFulfillments
-2026/04/17 12:35:42 [201] POST /api/v1/tiers 611.875µs (req_id=20a8e7e2-ea26-4b8e-89b7-faef869dc79d)
-2026/04/17 12:35:42 [201] POST /api/v1/customers 661.25µs (req_id=fa0f5c98-01a9-41c0-8cec-05a566e78090)
-2026/04/17 12:35:42 [200] POST /api/v1/auth/login 52.656292ms (req_id=09d7f561-8e3a-4dfd-a654-f7538f706a92)
-2026/04/17 12:35:42 [201] POST /api/v1/fulfillments 1.661959ms (req_id=1d9150e2-52c3-4f74-8a37-5f55ec386787)
+2026/04/17 15:00:35 [201] POST /api/v1/tiers 820µs (req_id=9fc079d1-40f3-46be-a568-281dec884c88)
+2026/04/17 15:00:35 [201] POST /api/v1/customers 768.501µs (req_id=9a066d15-35b2-452f-804c-0ac8de88fe0c)
+2026/04/17 15:00:35 [200] POST /api/v1/auth/login 54.55325ms (req_id=2daa1416-be96-47b9-8306-37d2613f843a)
+2026/04/17 15:00:35 [201] POST /api/v1/fulfillments 1.995625ms (req_id=a2d0b257-ca57-491b-9d95-faa2ac73d2cf)
 --- PASS: TestRBAC_SpecialistCanCreateFulfillments (0.11s)
 PASS
 coverage: 24.8% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
-ok  	github.com/fulfillops/fulfillops/e2e_tests	1.489s	coverage: 24.8% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
+ok  	github.com/fulfillops/fulfillops/e2e_tests	1.562s	coverage: 24.8% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
 === RUN   TestCleanupJob_PurgesFulfillmentWithRelatedRows
 TestCleanupJob_PurgesFulfillmentWithRelatedRows: deleted 1 records
 --- PASS: TestCleanupJob_PurgesFulfillmentWithRelatedRows (0.01s)
@@ -197,38 +197,38 @@ TestCleanupJob_PurgesFulfillmentWithRelatedRows: deleted 1 records
 === RUN   TestCleanupJob_RunBadPoolReturnsError
 --- PASS: TestCleanupJob_RunBadPoolReturnsError (0.00s)
 === RUN   TestSchedulerRunOnceAndStatus
-2026/04/17 12:35:41 scheduler: job demo completed, processed 7 records
+2026/04/17 15:00:34 scheduler: job demo completed, processed 7 records
 --- PASS: TestSchedulerRunOnceAndStatus (0.00s)
 === RUN   TestSchedulerRunOnceFailureRecordsFailedStatus
-2026/04/17 12:35:41 scheduler: job broken failed: boom
+2026/04/17 15:00:34 scheduler: job broken failed: boom
 --- PASS: TestSchedulerRunOnceFailureRecordsFailedStatus (0.05s)
 === RUN   TestBackupAndNotifyJobs
 --- PASS: TestBackupAndNotifyJobs (0.00s)
 === RUN   TestScheduledReportAndExportCleanupJobs
 --- PASS: TestScheduledReportAndExportCleanupJobs (0.00s)
 === RUN   TestOverdueAndStatsJobs
-2026/04/17 12:35:41 stats_job: status=DRAFT count=2
-2026/04/17 12:35:41 stats_job: status=VOUCHER_ISSUED count=1
-2026/04/17 12:35:41 stats_job: status=COMPLETED count=1
-2026/04/17 12:35:41 stats_job: tiers_below_threshold=1
+2026/04/17 15:00:34 stats_job: status=DRAFT count=2
+2026/04/17 15:00:34 stats_job: status=VOUCHER_ISSUED count=1
+2026/04/17 15:00:34 stats_job: status=COMPLETED count=1
+2026/04/17 15:00:34 stats_job: tiers_below_threshold=1
 --- PASS: TestOverdueAndStatsJobs (0.00s)
 === RUN   TestSchedulerRegisterStartStop
-2026/04/17 12:35:41 scheduler: started 1 jobs
-2026/04/17 12:35:41 scheduler: job fast completed, processed 1 records
-2026/04/17 12:35:41 scheduler: stopped
+2026/04/17 15:00:34 scheduler: started 1 jobs
+2026/04/17 15:00:34 scheduler: job fast completed, processed 1 records
+2026/04/17 15:00:34 scheduler: stopped
 --- PASS: TestSchedulerRegisterStartStop (0.01s)
 === RUN   TestSchedulerRunOnce_CreateFailAndFinishFail
-2026/04/17 12:35:41 scheduler: failed to create job_run_history for errcreate: cannot create run history
-2026/04/17 12:35:41 scheduler: job errcreate failed: job failed
-2026/04/17 12:35:41 scheduler: job errfinish completed, processed 1 records
-2026/04/17 12:35:41 scheduler: failed to finish job_run_history for errfinish: finish broke
---- PASS: TestSchedulerRunOnce_CreateFailAndFinishFail (0.06s)
+2026/04/17 15:00:34 scheduler: failed to create job_run_history for errcreate: cannot create run history
+2026/04/17 15:00:34 scheduler: job errcreate failed: job failed
+2026/04/17 15:00:34 scheduler: job errfinish completed, processed 1 records
+2026/04/17 15:00:34 scheduler: failed to finish job_run_history for errfinish: finish broke
+--- PASS: TestSchedulerRunOnce_CreateFailAndFinishFail (0.05s)
 === RUN   TestOverdueJob_SkipNilReadyAndCreateError
-2026/04/17 12:35:41 overdue_job: creating exception for 13ac29a6-a183-4d62-b720-d83eb20c93c7: create error
+2026/04/17 15:00:34 overdue_job: creating exception for ec4fe4e2-89c0-4669-8371-81ad07d85d00: create error
 --- PASS: TestOverdueJob_SkipNilReadyAndCreateError (0.00s)
 === RUN   TestOverdueJob_SLAErrorAndNotOverdueAndExistsOpenError
-2026/04/17 12:35:41 overdue_job: SLA calc for 44833592-aa2c-49e1-af81-b1b92717b734: sla calc error
-2026/04/17 12:35:41 overdue_job: checking exception existence for 44833592-aa2c-49e1-af81-b1b92717b734: exists error
+2026/04/17 15:00:34 overdue_job: SLA calc for 4aebb519-2268-4a1f-981f-8e989184a89d: sla calc error
+2026/04/17 15:00:34 overdue_job: checking exception existence for 4aebb519-2268-4a1f-981f-8e989184a89d: exists error
 --- PASS: TestOverdueJob_SLAErrorAndNotOverdueAndExistsOpenError (0.00s)
 === RUN   TestBackupJob_Branches
 --- PASS: TestBackupJob_Branches (0.00s)
@@ -241,7 +241,7 @@ TestCleanupJob_PurgesFulfillmentWithRelatedRows: deleted 1 records
 === RUN   TestScheduledReportJob_ExportError
 --- PASS: TestScheduledReportJob_ExportError (0.00s)
 === RUN   TestExportCleanupJob_MissingFilesAndRepoErrors
-2026/04/17 12:35:41 export_cleanup: deleting export record 09efedd2-2fff-49e7-addf-04da476aec40: del fail
+2026/04/17 15:00:34 export_cleanup: deleting export record ac7ca400-a210-47ab-95d3-5328b3a00850: del fail
 --- PASS: TestExportCleanupJob_MissingFilesAndRepoErrors (0.00s)
 === RUN   TestWithTimezone_NilPreservesUTC
 --- PASS: TestWithTimezone_NilPreservesUTC (0.00s)
@@ -252,12 +252,12 @@ TestCleanupJob_PurgesFulfillmentWithRelatedRows: deleted 1 records
 === RUN   TestRunDailyLoop_DSTSpringForwardDoesNotSkipDay
 --- PASS: TestRunDailyLoop_DSTSpringForwardDoesNotSkipDay (0.00s)
 === RUN   TestSchedulerRegisterDailyRunsOnStartStopImmediately
-2026/04/17 12:35:41 scheduler: started 1 jobs
-2026/04/17 12:35:41 scheduler: stopped
+2026/04/17 15:00:34 scheduler: started 1 jobs
+2026/04/17 15:00:34 scheduler: stopped
 --- PASS: TestSchedulerRegisterDailyRunsOnStartStopImmediately (0.03s)
 PASS
 coverage: 53.0% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
-ok  	github.com/fulfillops/fulfillops/internal/job	0.181s	coverage: 53.0% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
+ok  	github.com/fulfillops/fulfillops/internal/job	0.177s	coverage: 53.0% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
 === RUN   TestLoadUsesEnvAndDefaults
 --- PASS: TestLoadUsesEnvAndDefaults (0.00s)
 === RUN   TestValidateCreatesDirsAndRejectsShortSecret
@@ -354,7 +354,7 @@ ok  	github.com/fulfillops/fulfillops/internal/config	0.004s	coverage: 3.2% of s
 === RUN   TestDomainErrorToHTTP_Internal
 --- PASS: TestDomainErrorToHTTP_Internal (0.00s)
 === RUN   TestLoggerAndTraceMiddleware
-2026/04/17 12:35:41 [418] GET /x 125ns (req_id=trace-id)
+2026/04/17 15:00:34 [418] GET /x 250ns (req_id=trace-id)
 --- PASS: TestLoggerAndTraceMiddleware (0.00s)
 === RUN   TestRequestID_GeneratesWhenMissing
 --- PASS: TestRequestID_GeneratesWhenMissing (0.00s)
@@ -373,8 +373,8 @@ ok  	github.com/fulfillops/fulfillops/internal/config	0.004s	coverage: 3.2% of s
 === RUN   TestClearPageSession_StoreError
 --- PASS: TestClearPageSession_StoreError (0.00s)
 === RUN   TestLogger_FallbackReqIDFromRequestHeader
-2026/04/17 12:35:41 [200] GET /x 84ns (req_id=req-header-id)
+2026/04/17 15:00:34 [200] GET /x 209ns (req_id=req-header-id)
 --- PASS: TestLogger_FallbackReqIDFromRequestHeader (0.00s)
 PASS
 coverage: 37.1% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
-ok  	github.com/fulfillops/fulfillops/internal/middleware	0.007s	coverage: 37.1% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...
+ok  	github.com/fulfillops/fulfillops/internal/middleware	0.009s	coverage: 37.1% of statements in ./internal/job/..., ./internal/config/..., ./internal/middleware/...

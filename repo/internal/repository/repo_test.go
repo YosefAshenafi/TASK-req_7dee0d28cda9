@@ -23,7 +23,10 @@ var testPool *pgxpool.Pool
 func seedAdminID(t *testing.T) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
-	err := testPool.QueryRow(context.Background(), `SELECT id FROM users WHERE username='admin' LIMIT 1`).Scan(&id)
+	err := testPool.QueryRow(
+		context.Background(),
+		`SELECT id FROM users WHERE role='ADMINISTRATOR' ORDER BY is_active DESC, created_at ASC LIMIT 1`,
+	).Scan(&id)
 	if err != nil {
 		t.Fatalf("seeding admin user: %v", err)
 	}

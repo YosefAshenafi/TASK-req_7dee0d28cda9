@@ -92,7 +92,7 @@ ok  	github.com/fulfillops/fulfillops/unit_tests	0.004s	coverage: 95.3% of state
 === RUN   TestAuditServiceLogIncludesContext
 --- PASS: TestAuditServiceLogIncludesContext (0.00s)
 === RUN   TestUserServiceAndInventoryService
---- PASS: TestUserServiceAndInventoryService (0.20s)
+--- PASS: TestUserServiceAndInventoryService (0.22s)
 === RUN   TestExceptionAndMessagingServices
 --- PASS: TestExceptionAndMessagingServices (0.00s)
 === RUN   TestBackupAndExportServices
@@ -100,11 +100,11 @@ ok  	github.com/fulfillops/fulfillops/unit_tests	0.004s	coverage: 95.3% of state
 === RUN   TestPageRequestAndSLAHelpers
 --- PASS: TestPageRequestAndSLAHelpers (0.00s)
 === RUN   TestBootstrapAdmin_CreatesAdminWhenNoneExists
---- PASS: TestBootstrapAdmin_CreatesAdminWhenNoneExists (0.10s)
+--- PASS: TestBootstrapAdmin_CreatesAdminWhenNoneExists (0.11s)
 === RUN   TestBootstrapAdmin_NoopWhenAdminExists
 --- PASS: TestBootstrapAdmin_NoopWhenAdminExists (0.00s)
 === RUN   TestChangePassword_ClearsRotateFlag
---- PASS: TestChangePassword_ClearsRotateFlag (0.15s)
+--- PASS: TestChangePassword_ClearsRotateFlag (0.16s)
 === RUN   TestChangePassword_RejectsWeakPassword
 --- PASS: TestChangePassword_RejectsWeakPassword (0.00s)
 === RUN   TestValidateShippingAddress_AllBranches
@@ -202,7 +202,7 @@ ok  	github.com/fulfillops/fulfillops/unit_tests	0.004s	coverage: 95.3% of state
     --- PASS: TestNewEncryptionServiceErrors/too_short_key (0.00s)
     --- PASS: TestNewEncryptionServiceErrors/invalid_base64 (0.00s)
 === RUN   TestFulfillmentAllTransitions
---- PASS: TestFulfillmentAllTransitions (0.03s)
+--- PASS: TestFulfillmentAllTransitions (0.02s)
 === RUN   TestTransitionTerminalReturnsError
 --- PASS: TestTransitionTerminalReturnsError (0.01s)
 === RUN   TestTransitionShippedWithoutTracking
@@ -225,4 +225,4 @@ ok  	github.com/fulfillops/fulfillops/unit_tests	0.004s	coverage: 95.3% of state
 --- PASS: TestSLAVoucher (0.00s)
 PASS
 coverage: 54.7% of statements in ./internal/domain/..., ./internal/util/...
-ok  	github.com/fulfillops/fulfillops/internal/service	0.539s	coverage: 54.7% of statements in ./internal/domain/..., ./internal/util/...
+ok  	github.com/fulfillops/fulfillops/internal/service	0.554s	coverage: 54.7% of statements in ./internal/domain/..., ./internal/util/...
