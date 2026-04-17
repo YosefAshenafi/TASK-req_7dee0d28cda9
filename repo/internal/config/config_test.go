@@ -70,6 +70,30 @@ func TestLoadEnvParseError(t *testing.T) {
 	}
 }
 
+func TestLoadRequiresSessionSecret(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://example")
+	// Explicitly unset FULFILLOPS_SESSION_SECRET to simulate a misconfigured
+	// deployment. The env.Parse call must refuse to load.
+	os.Unsetenv("FULFILLOPS_SESSION_SECRET")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error when FULFILLOPS_SESSION_SECRET is missing")
+	}
+}
+
+func TestValidateRejectsEmptySessionSecret(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := &Config{
+		DatabaseURL:   "postgres://example",
+		SessionSecret: "",
+		ExportDir:     filepath.Join(tmp, "exports"),
+		BackupDir:     filepath.Join(tmp, "backups"),
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error when session secret is empty")
+	}
+}
+
 func TestValidateExportDirMkdirError(t *testing.T) {
 	tmp := t.TempDir()
 	blockPath := filepath.Join(tmp, "block")

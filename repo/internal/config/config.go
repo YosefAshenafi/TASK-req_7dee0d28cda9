@@ -15,7 +15,7 @@ type Config struct {
 	AssetsDir               string `env:"FULFILLOPS_ASSETS_DIR" envDefault:"/app/assets"`
 	MigrationsPath          string `env:"FULFILLOPS_MIGRATIONS_PATH" envDefault:"/app/migrations"`
 	Port                    string `env:"FULFILLOPS_PORT" envDefault:"8080"`
-	SessionSecret           string `env:"FULFILLOPS_SESSION_SECRET" envDefault:"change-me-in-production-32bytes!"`
+	SessionSecret           string `env:"FULFILLOPS_SESSION_SECRET,required"`
 	GinMode                 string `env:"GIN_MODE" envDefault:"debug"`
 	SecureCookies           bool   `env:"FULFILLOPS_SECURE_COOKIES" envDefault:"true"`
 	BootstrapAdminEmail     string `env:"FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL" envDefault:""`
@@ -32,6 +32,9 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
+	if c.SessionSecret == "" {
+		return fmt.Errorf("FULFILLOPS_SESSION_SECRET is required")
+	}
 	if len(c.SessionSecret) < 32 {
 		return fmt.Errorf("FULFILLOPS_SESSION_SECRET must be at least 32 characters")
 	}
