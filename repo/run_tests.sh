@@ -66,6 +66,33 @@ done
 echo -ne "${CYAN}Ensuring golang:1.23-alpine image is present...${RESET}"
 docker pull golang:1.23-alpine --quiet >/dev/null 2>&1 && echo -e " ${GREEN}ok${RESET}" || true
 
+# ── pre-download Go modules (populates the shared cache, avoids mid-test fetches) ──
+echo -ne "${CYAN}Pre-downloading Go modules...${RESET}"
+docker run --rm \
+  -v "${REPO_ROOT}:/src" -w /src \
+  -v fulfillops_go_mod_cache:/go/pkg/mod \
+  -v fulfillops_go_build_cache:/root/.cache/go-build \
+  golang:1.23-alpine \
+  go mod download >/dev/null 2>&1 \
+  && echo -e " ${GREEN}ok${RESET}" \
+  || echo -e " ${YELLOW}(download warnings; modules may already be cached)${RESET}"
+
+# ── database migrations ───────────────────────────────────────────────────────
+echo -ne "${CYAN}Running database migrations...${RESET}"
+if docker image inspect repo-app >/dev/null 2>&1; then
+  docker run --rm --entrypoint="" \
+      --network docker_default \
+      -v "${REPO_ROOT}/migrations:/app/migrations:ro" \
+      -e "DATABASE_URL=${DB_URL}" \
+      repo-app \
+      sh -c 'migrate -path /app/migrations -database "$DATABASE_URL" up' \
+    2>&1 \
+    && echo -e " ${GREEN}done${RESET}" \
+    || echo -e " ${YELLOW}warning: migration command returned non-zero${RESET}"
+else
+  echo -e " ${YELLOW}repo-app image not found — DB-dependent tests will fail${RESET}"
+fi
+
 # ── line colorizer (called while piping go test -v output) ───────────────────
 colorize() {
   while IFS= read -r line; do

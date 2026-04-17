@@ -22,7 +22,7 @@ All business logic is in plain Go under `internal/`. No running stack is require
 | Scheduled jobs | `internal/job/` |
 | Templ views | `internal/view/` |
 | Unit / handler tests | `internal/*/...` |
-| API / integration / E2E tests | `tests/` |
+| API / integration / E2E tests | `API_tests/`, `e2e_tests/`, `integration/`, `unit_tests/` |
 
 ---
 

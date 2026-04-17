@@ -126,12 +126,15 @@ func TestTierVersionConflict(t *testing.T) {
 	repo := repository.NewTierRepository(testPool)
 	ctx := context.Background()
 
-	tier, _ := repo.Create(ctx, &domain.RewardTier{
+	tier, err := repo.Create(ctx, &domain.RewardTier{
 		Name: "Conflict Tier " + uuid.New().String()[:8], InventoryCount: 5, PurchaseLimit: 2, AlertThreshold: 1,
 	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
 
 	tier.Name = "Updated"
-	_, err := repo.Update(ctx, tier) // version=1, should succeed
+	_, err = repo.Update(ctx, tier) // version=1, should succeed
 	if err != nil {
 		t.Fatalf("first update: %v", err)
 	}
