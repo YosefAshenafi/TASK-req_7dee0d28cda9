@@ -135,10 +135,13 @@ func (r *pgSendLogRepo) List(ctx context.Context, f SendLogFilters, page domain.
 }
 
 func (r *pgSendLogRepo) GetRetryable(ctx context.Context, now time.Time) ([]domain.SendLog, error) {
+	// Scan QUEUED rows whose retry window has elapsed (offline SMS/EMAIL sends that
+	// have not been picked up yet) as well as FAILED rows that are scheduled for
+	// a retry attempt.
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+sendLogCols+`
 		 FROM send_logs
-		 WHERE status='FAILED' AND next_retry_at <= $1`,
+		 WHERE status IN ('QUEUED','FAILED') AND next_retry_at IS NOT NULL AND next_retry_at <= $1`,
 		now)
 	if err != nil {
 		return nil, err

@@ -37,11 +37,20 @@ func (h *PageDashboardHandler) Show(c *gin.Context) {
 	ctx := c.Request.Context()
 	pctx := pageCtx(c, h.store)
 
+	// "Today's pending" = fulfillments created today (UTC) that are still DRAFT
+	// or READY_TO_SHIP.
+	now := time.Now().UTC()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
 	_, pendingDraft, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{
-		Status: domain.StatusDraft,
+		Status:   domain.StatusDraft,
+		DateFrom: &startOfDay,
+		DateTo:   &now,
 	}, domain.PageRequest{Page: 1, PageSize: 1})
 	_, pendingReady, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{
-		Status: domain.StatusReadyToShip,
+		Status:   domain.StatusReadyToShip,
+		DateFrom: &startOfDay,
+		DateTo:   &now,
 	}, domain.PageRequest{Page: 1, PageSize: 1})
 
 	openExceptions, _ := h.exRepo.List(ctx, repository.ExceptionFilters{
@@ -56,9 +65,6 @@ func (h *PageDashboardHandler) Show(c *gin.Context) {
 		}
 	}
 
-	// Date-scoped "today" = UTC midnight..now (matches created_at column semantics).
-	now := time.Now().UTC()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	_, fulfilledToday, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{
 		Status:   domain.StatusCompleted,
 		DateFrom: &startOfDay,

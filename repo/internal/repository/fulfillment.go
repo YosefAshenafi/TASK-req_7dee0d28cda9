@@ -14,12 +14,13 @@ import (
 )
 
 type FulfillmentFilters struct {
-	Status     domain.FulfillmentStatus
-	TierID     *uuid.UUID
-	CustomerID *uuid.UUID
-	Type       domain.FulfillmentType
-	DateFrom   *time.Time
-	DateTo     *time.Time
+	Status         domain.FulfillmentStatus
+	TierID         *uuid.UUID
+	CustomerID     *uuid.UUID
+	Type           domain.FulfillmentType
+	DateFrom       *time.Time
+	DateTo         *time.Time
+	IncludeDeleted bool
 }
 
 type FulfillmentRepository interface {
@@ -48,7 +49,10 @@ const fulfillmentCols = `id, tier_id, customer_id, type, status,
 func (r *pgFulfillmentRepo) List(ctx context.Context, filters FulfillmentFilters, page domain.PageRequest) ([]domain.Fulfillment, int, error) {
 	page.Normalize()
 	args := []any{}
-	where := `WHERE deleted_at IS NULL`
+	where := `WHERE 1=1`
+	if !filters.IncludeDeleted {
+		where += ` AND deleted_at IS NULL`
+	}
 	i := 1
 
 	if filters.Status != "" {

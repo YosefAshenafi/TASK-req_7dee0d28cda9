@@ -162,7 +162,7 @@ func scanTierLocked(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Rewar
 	rows, err := tx.Query(ctx,
 		`SELECT id, name, description, inventory_count, purchase_limit, alert_threshold,
 		        version, created_at, updated_at, deleted_at, deleted_by
-		 FROM reward_tiers WHERE id=$1 FOR UPDATE`, id)
+		 FROM reward_tiers WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id)
 	if err != nil {
 		return nil, fmt.Errorf("querying tier for update: %w", err)
 	}

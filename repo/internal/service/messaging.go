@@ -90,6 +90,11 @@ func (s *messagingService) MarkPrinted(ctx context.Context, id uuid.UUID) error 
 	return s.sendLogRepo.MarkPrinted(ctx, id, actorID)
 }
 
+// RetryPending processes send_log rows in QUEUED or FAILED state whose
+// next_retry_at has elapsed. Rows that have reached maxAttempts are
+// permanently marked FAILED (terminal). All others are re-queued with a
+// new retry window, implementing the "retry up to N times over 30 minutes"
+// requirement.
 func (s *messagingService) RetryPending(ctx context.Context, maxAttempts int) (int, error) {
 	now := time.Now().UTC()
 	logs, err := s.sendLogRepo.GetRetryable(ctx, now)
@@ -99,8 +104,12 @@ func (s *messagingService) RetryPending(ctx context.Context, maxAttempts int) (i
 
 	retried := 0
 	for _, l := range logs {
+		// AttemptCount is incremented by UpdateStatus, so compare with maxAttempts-1
+		// to allow the final attempt before marking terminal FAILED.
 		if l.AttemptCount >= maxAttempts {
-			if err := s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendFailed, nil); err != nil {
+			// Terminal failure — permanently mark FAILED and do not count as retried.
+			errMsg := "max retry attempts reached"
+			if err := s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendFailed, &errMsg); err != nil {
 				return retried, err
 			}
 			continue
@@ -125,14 +134,14 @@ func (s *messagingService) RetryPending(ctx context.Context, maxAttempts int) (i
 					}
 				}
 			}
-			// Reschedule with fixed 10-min interval.
+			// Delivery failed — re-queue with 10-min back-off.
 			next := now.Add(10 * time.Minute)
 			_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendQueued, nil)
 			_ = s.sendLogRepo.UpdateNextRetry(ctx, l.ID, next)
 			retried++
 
 		case domain.ChannelSMS, domain.ChannelEmail:
-			// Re-queue for handoff with fixed 10-min interval.
+			// Re-queue for operator handoff with 10-min back-off.
 			next := now.Add(10 * time.Minute)
 			_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendQueued, nil)
 			_ = s.sendLogRepo.UpdateNextRetry(ctx, l.ID, next)

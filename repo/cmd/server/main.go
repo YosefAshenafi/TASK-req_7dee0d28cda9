@@ -76,7 +76,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
 	fulfillSvc := service.NewFulfillmentService(
-		txMgr, fulfillRepo, tierRepo, timelineRepo,
+		txMgr, fulfillRepo, tierRepo, customerRepo, timelineRepo,
 		shippingRepo, notifRepo, invSvc, auditSvc,
 	)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
@@ -140,6 +140,9 @@ func main() {
 		Pool:         db,
 		Store:        store,
 		Scheduler:    sched,
+		EncKeyPath:   cfg.EncryptionKeyPath,
+		ExportDir:    cfg.ExportDir,
+		BackupDir:    cfg.BackupDir,
 		UserSvc:      userSvc,
 		FulfillSvc:   fulfillSvc,
 		ExceptionSvc: exceptionSvc,

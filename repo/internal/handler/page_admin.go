@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -28,6 +29,10 @@ type PageAdminHandler struct {
 	userSvc      service.UserService
 	userRepo     repository.UserRepository
 	backupSvc    service.BackupService
+	scheduler    JobScheduler
+	encKeyPath   string
+	exportDir    string
+	backupDir    string
 }
 
 func NewPageAdminHandler(
@@ -49,6 +54,15 @@ func NewPageAdminHandler(
 	}
 }
 
+// WithHealthConfig attaches config paths needed for real health checks.
+func (h *PageAdminHandler) WithHealthConfig(encKeyPath, exportDir, backupDir string, scheduler JobScheduler) *PageAdminHandler {
+	h.encKeyPath = encKeyPath
+	h.exportDir = exportDir
+	h.backupDir = backupDir
+	h.scheduler = scheduler
+	return h
+}
+
 // WithBackupService attaches a backup service for real backup/restore operations.
 func (h *PageAdminHandler) WithBackupService(svc service.BackupService) *PageAdminHandler {
 	h.backupSvc = svc
@@ -57,12 +71,55 @@ func (h *PageAdminHandler) WithBackupService(svc service.BackupService) *PageAdm
 
 func (h *PageAdminHandler) ShowHealth(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	dbOK := h.pool.Ping(ctx) == nil
+	dbDetail := "PostgreSQL 16 — connected"
+	if !dbOK {
+		dbDetail = "PostgreSQL 16 — unreachable"
+	}
+
+	encOK := true
+	encDetail := h.encKeyPath
+	if encDetail == "" {
+		encDetail = "(path not configured)"
+	}
+	if _, err := os.Stat(h.encKeyPath); err != nil {
+		encOK = false
+		encDetail = h.encKeyPath + " — " + err.Error()
+	}
+
+	exportOK := true
+	exportDetail := h.exportDir
+	if exportDetail == "" {
+		exportDetail = "(path not configured)"
+	}
+	if _, err := os.Stat(h.exportDir); err != nil {
+		exportOK = false
+		exportDetail = h.exportDir + " — " + err.Error()
+	}
+
+	backupOK := true
+	backupDetail := h.backupDir
+	if backupDetail == "" {
+		backupDetail = "(path not configured)"
+	}
+	if _, err := os.Stat(h.backupDir); err != nil {
+		backupOK = false
+		backupDetail = h.backupDir + " — " + err.Error()
+	}
+
+	schedOK := h.scheduler != nil
+	schedDetail := "Running"
+	if !schedOK {
+		schedDetail = "Not initialised"
+	}
+
 	checks := []adview.HealthCheck{
-		{Name: "Database", OK: h.pool.Ping(ctx) == nil, Detail: "PostgreSQL 16"},
-		{Name: "Encryption Key", OK: true, Detail: "AES-256-GCM"},
-		{Name: "Export Directory", OK: true, Detail: "/app/exports"},
-		{Name: "Backup Directory", OK: true, Detail: "/app/backups"},
-		{Name: "Scheduler", OK: true, Detail: "Running"},
+		{Name: "Database", OK: dbOK, Detail: dbDetail},
+		{Name: "Encryption Key", OK: encOK, Detail: encDetail},
+		{Name: "Export Directory", OK: exportOK, Detail: exportDetail},
+		{Name: "Backup Directory", OK: backupOK, Detail: backupDetail},
+		{Name: "Scheduler", OK: schedOK, Detail: schedDetail},
 	}
 	runs, _, _ := h.jobRunRepo.List(ctx, repository.JobRunFilters{}, domain.PageRequest{Page: 1, PageSize: 20})
 	renderPage(c, http.StatusOK, adview.Health(pageCtx(c, h.store), adview.HealthData{
@@ -134,7 +191,7 @@ func (h *PageAdminHandler) ShowRecovery(c *gin.Context) {
 
 	allTiers, _ := h.tierRepo.List(ctx, "", true)
 	allCustomers, _, _ := h.customerRepo.List(ctx, "", domain.PageRequest{Page: 1, PageSize: 500}, true)
-	allFulfillments, _, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{}, domain.PageRequest{Page: 1, PageSize: 200})
+	allFulfillments, _, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{IncludeDeleted: true}, domain.PageRequest{Page: 1, PageSize: 200})
 	allTemplates, _ := h.templateRepo.List(ctx, domain.TemplateCategory(""), domain.SendLogChannel(""), true)
 
 	var deletedTiers []domain.RewardTier

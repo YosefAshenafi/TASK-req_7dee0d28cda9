@@ -47,6 +47,11 @@ type Deps struct {
 	BlackoutRepo repository.BlackoutDateRepository
 	JobRunRepo   repository.JobRunRepository
 	UserRepo     repository.UserRepository
+
+	// Config paths for real health checks
+	EncKeyPath string
+	ExportDir  string
+	BackupDir  string
 }
 
 func RegisterRoutes(r *gin.Engine, d Deps) {
@@ -73,7 +78,8 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 		d.Store, d.Pool, d.JobRunRepo,
 		d.TierRepo, d.CustomerRepo, d.FulfillRepo, d.TemplateRepo,
 		d.UserSvc, d.UserRepo,
-	).WithBackupService(d.BackupSvc)
+	).WithBackupService(d.BackupSvc).
+		WithHealthConfig(d.EncKeyPath, d.ExportDir, d.BackupDir, d.Scheduler)
 
 	// Public page routes
 	r.GET("/auth/login", pageAuth.ShowLogin)
@@ -264,7 +270,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOrAuditor.GET("/audit", audit.List)
 
 	// Admin
-	admin := NewAdminHandler(d.Pool, d.JobRunRepo).WithScheduler(d.Scheduler)
+	admin := NewAdminHandler(d.Pool, d.JobRunRepo, d.EncKeyPath, d.ExportDir, d.BackupDir).WithScheduler(d.Scheduler)
 	adminOnly.GET("/admin/health", admin.Health)
 	adminOnly.GET("/admin/jobs/runs", admin.ListJobRuns)
 	adminOnly.POST("/admin/jobs/:name/run", admin.TriggerJob)

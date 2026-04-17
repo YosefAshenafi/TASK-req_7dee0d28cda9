@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -18,10 +19,19 @@ type AdminHandler struct {
 	pool       *pgxpool.Pool
 	jobRunRepo repository.JobRunRepository
 	scheduler  JobScheduler
+	encKeyPath string
+	exportDir  string
+	backupDir  string
 }
 
-func NewAdminHandler(pool *pgxpool.Pool, jobRunRepo repository.JobRunRepository) *AdminHandler {
-	return &AdminHandler{pool: pool, jobRunRepo: jobRunRepo}
+func NewAdminHandler(pool *pgxpool.Pool, jobRunRepo repository.JobRunRepository, encKeyPath, exportDir, backupDir string) *AdminHandler {
+	return &AdminHandler{
+		pool:       pool,
+		jobRunRepo: jobRunRepo,
+		encKeyPath: encKeyPath,
+		exportDir:  exportDir,
+		backupDir:  backupDir,
+	}
 }
 
 // WithScheduler attaches a scheduler for job trigger endpoints.
@@ -39,13 +49,44 @@ func (h *AdminHandler) Health(c *gin.Context) {
 		dbStatus = "error: " + err.Error()
 	}
 
+	encStatus := "ok"
+	if h.encKeyPath != "" {
+		if _, err := os.Stat(h.encKeyPath); err != nil {
+			encStatus = "error: " + err.Error()
+		}
+	}
+
+	dirsStatus := "ok"
+	for _, dir := range []string{h.exportDir, h.backupDir} {
+		if dir == "" {
+			continue
+		}
+		if _, err := os.Stat(dir); err != nil {
+			dirsStatus = "error: " + dir + ": " + err.Error()
+			break
+		}
+	}
+
+	schedStatus := "ok"
+	if h.scheduler == nil {
+		schedStatus = "error: scheduler not initialised"
+	}
+
+	overall := "ok"
+	for _, s := range []string{dbStatus, encStatus, dirsStatus, schedStatus} {
+		if len(s) > 2 && s[:5] == "error" {
+			overall = "degraded"
+			break
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
+		"status": overall,
 		"checks": gin.H{
 			"database":   dbStatus,
-			"encryption": "ok",
-			"dirs":       "ok",
-			"scheduler":  "ok",
+			"encryption": encStatus,
+			"dirs":       dirsStatus,
+			"scheduler":  schedStatus,
 		},
 	})
 }

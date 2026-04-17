@@ -98,6 +98,7 @@ type fulfillmentService struct {
 	txMgr        repository.TxManager
 	fulfillRepo  repository.FulfillmentRepository
 	tierRepo     repository.TierRepository
+	customerRepo repository.CustomerRepository
 	timelineRepo repository.TimelineRepository
 	shippingRepo repository.ShippingAddressRepository
 	notifRepo    repository.NotificationRepository
@@ -113,6 +114,7 @@ func NewFulfillmentService(
 	txMgr repository.TxManager,
 	fulfillRepo repository.FulfillmentRepository,
 	tierRepo repository.TierRepository,
+	customerRepo repository.CustomerRepository,
 	timelineRepo repository.TimelineRepository,
 	shippingRepo repository.ShippingAddressRepository,
 	notifRepo repository.NotificationRepository,
@@ -123,6 +125,7 @@ func NewFulfillmentService(
 		txMgr:        txMgr,
 		fulfillRepo:  fulfillRepo,
 		tierRepo:     tierRepo,
+		customerRepo: customerRepo,
 		timelineRepo: timelineRepo,
 		shippingRepo: shippingRepo,
 		notifRepo:    notifRepo,
@@ -147,8 +150,15 @@ func (s *fulfillmentService) Create(ctx context.Context, input CreateFulfillment
 
 	err := s.txMgr.WithTx(ctx, func(tx pgx.Tx) error {
 		// 1. Lock the tier row to prevent concurrent modifications.
+		// GetByIDForUpdate respects deleted_at IS NULL, so a soft-deleted tier
+		// returns ErrNotFound and cannot be used for new fulfillments.
 		tier, err := s.tierRepo.GetByIDForUpdate(ctx, tx, input.TierID)
 		if err != nil {
+			return err
+		}
+
+		// 1a. Validate that the customer exists and is not soft-deleted.
+		if _, err := s.customerRepo.GetByID(ctx, input.CustomerID); err != nil {
 			return err
 		}
 
@@ -261,21 +271,35 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 		switch input.ToStatus {
 		case domain.StatusReadyToShip:
 			f.ReadyAt = &now
-			// Physical fulfillments require a shipping address at READY_TO_SHIP.
-			if f.Type == domain.TypePhysical && input.ShippingAddr != nil && s.shippingRepo != nil {
-				if err := validateShippingAddress(input.ShippingAddr); err != nil {
-					return err
-				}
-				addr := &domain.ShippingAddress{
-					FulfillmentID:  f.ID,
-					Line1Encrypted: input.ShippingAddr.Line1Encrypted,
-					Line2Encrypted: input.ShippingAddr.Line2Encrypted,
-					City:           input.ShippingAddr.City,
-					State:          input.ShippingAddr.State,
-					ZipCode:        input.ShippingAddr.ZipCode,
-				}
-				if _, err := s.shippingRepo.Create(ctx, tx, addr); err != nil {
-					return fmt.Errorf("persisting shipping address: %w", err)
+			if f.Type == domain.TypePhysical && s.shippingRepo != nil {
+				if input.ShippingAddr != nil {
+					// New address provided — validate and persist.
+					if err := validateShippingAddress(input.ShippingAddr); err != nil {
+						return err
+					}
+					addr := &domain.ShippingAddress{
+						FulfillmentID:  f.ID,
+						Line1Encrypted: input.ShippingAddr.Line1Encrypted,
+						Line2Encrypted: input.ShippingAddr.Line2Encrypted,
+						City:           input.ShippingAddr.City,
+						State:          input.ShippingAddr.State,
+						ZipCode:        input.ShippingAddr.ZipCode,
+					}
+					if _, err := s.shippingRepo.Create(ctx, tx, addr); err != nil {
+						return fmt.Errorf("persisting shipping address: %w", err)
+					}
+				} else {
+					// No new address supplied — a pre-existing address (e.g. after
+					// ON_HOLD → READY_TO_SHIP resume) satisfies the requirement.
+					existing, err := s.shippingRepo.GetByFulfillmentID(ctx, f.ID)
+					if err != nil {
+						return fmt.Errorf("checking existing shipping address: %w", err)
+					}
+					if existing == nil {
+						return domain.NewValidationError("missing required field", map[string]string{
+							"shipping_address": "physical fulfillments require a shipping address when transitioning to READY_TO_SHIP",
+						})
+					}
 				}
 			}
 

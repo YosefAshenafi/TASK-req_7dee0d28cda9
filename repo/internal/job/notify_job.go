@@ -7,7 +7,8 @@ import (
 	"github.com/fulfillops/fulfillops/internal/service"
 )
 
-// NotifyJob retries QUEUED in-app send_logs up to maxAttempts times.
+// NotifyJob retries QUEUED and FAILED send_logs up to maxAttempts times.
+// Rows that have exhausted all attempts are permanently transitioned to FAILED.
 type NotifyJob struct {
 	messagingSvc service.MessagingService
 	maxAttempts  int

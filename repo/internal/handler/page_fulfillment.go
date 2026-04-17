@@ -164,11 +164,19 @@ func (h *PageFulfillmentHandler) ShowDetail(c *gin.Context) {
 		exItems[i] = fview.ExceptionItem{FulfillmentException: ex}
 	}
 
-	// Decrypt shipping address for display
+	// Decrypt shipping address for display.
+	// Admins and Fulfillment Specialists see full address; all other roles
+	// (including Auditors) see masked address lines to protect sensitive PII.
 	var shippingAddrResp *domain.ShippingAddressResponse
 	if shippingAddr != nil {
 		line1, _ := h.encSvc.DecryptToString(shippingAddr.Line1Encrypted)
 		line2, _ := h.encSvc.DecryptToString(shippingAddr.Line2Encrypted)
+		if !canEdit(c, h.store) {
+			line1 = util.MaskAddress(line1)
+			if line2 != "" {
+				line2 = util.MaskAddress(line2)
+			}
+		}
 		shippingAddrResp = &domain.ShippingAddressResponse{
 			Line1:   line1,
 			Line2:   line2,
