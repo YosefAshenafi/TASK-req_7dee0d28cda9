@@ -43,13 +43,23 @@ type createFulfillmentRequest struct {
 	Type       domain.FulfillmentType `json:"type" binding:"required"`
 }
 
+type transitionShippingAddress struct {
+	Line1   string `json:"line_1"`
+	Line2   string `json:"line_2"`
+	City    string `json:"city"`
+	State   string `json:"state"`
+	ZipCode string `json:"zip_code"`
+}
+
 type transitionRequest struct {
-	ToStatus          domain.FulfillmentStatus `json:"to_status" binding:"required"`
-	CarrierName       *string                  `json:"carrier_name"`
-	TrackingNumber    *string                  `json:"tracking_number"`
-	VoucherCode       *string                  `json:"voucher_code"`
-	VoucherExpiration *time.Time               `json:"voucher_expiration"`
-	Reason            *string                  `json:"reason"`
+	ToStatus          domain.FulfillmentStatus   `json:"to_status" binding:"required"`
+	Version           int                        `json:"version" binding:"required"`
+	CarrierName       *string                    `json:"carrier_name"`
+	TrackingNumber    *string                    `json:"tracking_number"`
+	VoucherCode       *string                    `json:"voucher_code"`
+	VoucherExpiration *time.Time                 `json:"voucher_expiration"`
+	Reason            *string                    `json:"reason"`
+	ShippingAddress   *transitionShippingAddress `json:"shipping_address"`
 }
 
 func (h *FulfillmentHandler) toResponse(f *domain.Fulfillment) *domain.FulfillmentResponse {
@@ -195,6 +205,7 @@ func (h *FulfillmentHandler) Transition(c *gin.Context) {
 	input := service.TransitionInput{
 		FulfillmentID:     id,
 		ToStatus:          req.ToStatus,
+		ExpectedVersion:   req.Version,
 		CarrierName:       req.CarrierName,
 		TrackingNumber:    req.TrackingNumber,
 		VoucherExpiration: req.VoucherExpiration,
@@ -209,6 +220,30 @@ func (h *FulfillmentHandler) Transition(c *gin.Context) {
 			return
 		}
 		input.VoucherCode = enc
+	}
+
+	// Encrypt shipping address if provided.
+	if req.ShippingAddress != nil {
+		line1Enc, err1 := h.encSvc.EncryptString(req.ShippingAddress.Line1)
+		if err1 != nil {
+			c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+			return
+		}
+		var line2Enc []byte
+		if req.ShippingAddress.Line2 != "" {
+			line2Enc, err1 = h.encSvc.EncryptString(req.ShippingAddress.Line2)
+			if err1 != nil {
+				c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+				return
+			}
+		}
+		input.ShippingAddr = &service.ShippingAddressEncrypted{
+			Line1Encrypted: line1Enc,
+			Line2Encrypted: line2Enc,
+			City:           req.ShippingAddress.City,
+			State:          req.ShippingAddress.State,
+			ZipCode:        req.ShippingAddress.ZipCode,
+		}
 	}
 
 	updated, err := h.fulfillSvc.Transition(c.Request.Context(), input)

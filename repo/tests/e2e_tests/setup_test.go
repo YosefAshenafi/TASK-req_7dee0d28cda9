@@ -80,7 +80,7 @@ func buildRouter(dbURL string) *gin.Engine {
 	auditSvc := service.NewAuditService(auditRepo)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
-	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, invSvc, auditSvc)
+	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
 	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
 
@@ -174,4 +174,16 @@ func decode(t *testing.T, rr *httptest.ResponseRecorder) map[string]any {
 		t.Fatalf("decode JSON (status=%d): %v\nbody: %s", rr.Code, err, rr.Body.String())
 	}
 	return m
+}
+
+func transition(t *testing.T, ffID string, body map[string]any) *httptest.ResponseRecorder {
+	t.Helper()
+	current := do(http.MethodGet, "/api/v1/fulfillments/"+ffID, nil)
+	mustStatus(t, current, http.StatusOK)
+	version := int(decode(t, current)["version"].(float64))
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["version"] = version
+	return do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition", body)
 }

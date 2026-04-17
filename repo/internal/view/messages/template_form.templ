@@ -46,19 +46,19 @@ templ tmplFormInner(d TemplateFormData, action string, submitLabel string, title
 						<label class="form-label required" for="category">Category</label>
 						<select id="category" name="category" class="form-control" required>
 							<option value="">Select…</option>
-							<option value="booking_result" selected?={ tmplCategory(d.Template) == "booking_result" }>Booking Result</option>
-							<option value="booking_change" selected?={ tmplCategory(d.Template) == "booking_change" }>Booking Change</option>
-							<option value="expiration" selected?={ tmplCategory(d.Template) == "expiration" }>Expiration</option>
-							<option value="fulfillment_progress" selected?={ tmplCategory(d.Template) == "fulfillment_progress" }>Fulfillment Progress</option>
+							<option value="BOOKING_RESULT" selected?={ tmplCategory(d.Template) == "BOOKING_RESULT" }>Booking Result</option>
+							<option value="BOOKING_CHANGE" selected?={ tmplCategory(d.Template) == "BOOKING_CHANGE" }>Booking Change</option>
+							<option value="EXPIRATION" selected?={ tmplCategory(d.Template) == "EXPIRATION" }>Expiration</option>
+							<option value="FULFILLMENT_PROGRESS" selected?={ tmplCategory(d.Template) == "FULFILLMENT_PROGRESS" }>Fulfillment Progress</option>
 						</select>
 					</div>
 					<div class="form-group">
 						<label class="form-label required" for="channel">Channel</label>
 						<select id="channel" name="channel" class="form-control" required>
 							<option value="">Select…</option>
-							<option value="in_app" selected?={ tmplChannel(d.Template) == "in_app" }>In-App</option>
-							<option value="sms" selected?={ tmplChannel(d.Template) == "sms" }>SMS</option>
-							<option value="email" selected?={ tmplChannel(d.Template) == "email" }>Email</option>
+							<option value="IN_APP" selected?={ tmplChannel(d.Template) == "IN_APP" }>In-App</option>
+							<option value="SMS" selected?={ tmplChannel(d.Template) == "SMS" }>SMS</option>
+							<option value="EMAIL" selected?={ tmplChannel(d.Template) == "EMAIL" }>Email</option>
 						</select>
 					</div>
 				</div>

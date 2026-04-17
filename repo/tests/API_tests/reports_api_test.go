@@ -1,9 +1,15 @@
 package api_tests
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 )
 
 func TestReportsList(t *testing.T) {
@@ -88,4 +94,57 @@ func TestReportsDelete(t *testing.T) {
 func TestReports_RequiresAuth(t *testing.T) {
 	rr := unauthed(http.MethodGet, "/api/v1/reports/exports")
 	mustStatus(t, rr, http.StatusUnauthorized)
+}
+
+func loginAuditor(t *testing.T) *http.Cookie {
+	t.Helper()
+	ctx := context.Background()
+	auditSvc := service.NewAuditService(repository.NewAuditRepository(testPool))
+	userSvc := service.NewUserService(repository.NewUserRepository(testPool), auditSvc)
+	username := fmt.Sprintf("api_aud_%d", time.Now().UnixNano())
+	user, err := userSvc.CreateUser(ctx, username, username+"@test.com", "Audit@Test1!", domain.RoleAuditor)
+	if err != nil {
+		t.Fatalf("create auditor: %v", err)
+	}
+	t.Cleanup(func() { _ = userSvc.DeactivateUser(ctx, user.ID) })
+
+	rr := as(nil, http.MethodPost, "/api/v1/auth/login", map[string]any{
+		"username": username,
+		"password": "Audit@Test1!",
+	})
+	mustStatus(t, rr, http.StatusOK)
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == "fulfillops_session" {
+			return c
+		}
+	}
+	t.Fatal("auditor login did not return session cookie")
+	return nil
+}
+
+func TestReportsSensitive_AuditorCreateForbidden(t *testing.T) {
+	audCookie := loginAuditor(t)
+	rr := as(audCookie, http.MethodPost, "/api/v1/reports/exports", map[string]any{
+		"report_type":       "customers",
+		"include_sensitive": true,
+		"filters":           map[string]any{},
+	})
+	mustStatus(t, rr, http.StatusForbidden)
+}
+
+func TestReportsSensitive_AuditorGetAndVerifyForbidden(t *testing.T) {
+	rr := admin(http.MethodPost, "/api/v1/reports/exports", map[string]any{
+		"report_type":       "customers",
+		"include_sensitive": true,
+	})
+	mustStatus(t, rr, http.StatusCreated)
+	exportID := decodeJSON(t, rr)["id"].(string)
+
+	audCookie := loginAuditor(t)
+
+	rr = as(audCookie, http.MethodGet, "/api/v1/reports/exports/"+exportID, nil)
+	mustStatus(t, rr, http.StatusForbidden)
+
+	rr = as(audCookie, http.MethodPost, "/api/v1/reports/exports/"+exportID+"/verify-checksum", nil)
+	mustStatus(t, rr, http.StatusForbidden)
 }

@@ -75,7 +75,10 @@ func main() {
 	auditSvc := service.NewAuditService(auditRepo)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
-	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, invSvc, auditSvc)
+	fulfillSvc := service.NewFulfillmentService(
+		txMgr, fulfillRepo, tierRepo, timelineRepo,
+		shippingRepo, notifRepo, invSvc, auditSvc,
+	)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
 	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
 	exportSvc := service.NewExportService(reportRepo, fulfillRepo, customerRepo, auditRepo, enc, cfg.ExportDir)
@@ -89,12 +92,18 @@ func main() {
 		job.NewOverdueJob(fulfillRepo, exceptionRepo, slaSvc).Run)
 	sched.Register("notify-retry", 10*time.Minute,
 		job.NewNotifyJob(messagingSvc, 3).Run)
-	sched.Register("cleanup", 24*time.Hour,
+	sched.RegisterDaily("cleanup", 3, 0,
 		job.NewCleanupJob(db, 30).Run)
-	sched.Register("export-cleanup", 24*time.Hour,
+	sched.RegisterDaily("export-cleanup", 3, 30,
 		job.NewExportCleanupJob(reportRepo).Run)
-	sched.Register("stats", 24*time.Hour,
+	sched.RegisterDaily("stats", 2, 0,
 		job.NewStatsJob(fulfillRepo, tierRepo).Run)
+	// Compliance: nightly backup at 01:00 UTC.
+	sched.RegisterDaily("backup", 1, 0,
+		job.NewBackupJob(backupSvc).Run)
+	// Compliance: daily fulfillment + audit export at 02:30 UTC.
+	sched.RegisterDaily("scheduled-reports", 2, 30,
+		job.NewScheduledReportJob(reportRepo, exportSvc).Run)
 
 	// ── Session store ─────────────────────────────────────────────────────────
 	store := sessions.NewCookieStore([]byte(cfg.SessionSecret))
@@ -102,6 +111,7 @@ func main() {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
+		Secure:   cfg.SecureCookies,
 		SameSite: http.SameSiteStrictMode,
 	}
 
@@ -113,10 +123,10 @@ func main() {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 		if err := db.Ping(ctx); err != nil {
+			log.Printf("healthz: db ping failed: %v", err)
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status": "error",
 				"db":     "unreachable",
-				"error":  err.Error(),
 			})
 			return
 		}

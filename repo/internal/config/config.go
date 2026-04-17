@@ -16,6 +16,7 @@ type Config struct {
 	Port               string `env:"FULFILLOPS_PORT" envDefault:"8080"`
 	SessionSecret      string `env:"FULFILLOPS_SESSION_SECRET" envDefault:"change-me-in-production-32bytes!"`
 	GinMode            string `env:"GIN_MODE" envDefault:"debug"`
+	SecureCookies      bool   `env:"FULFILLOPS_SECURE_COOKIES" envDefault:"true"`
 }
 
 func Load() (*Config, error) {

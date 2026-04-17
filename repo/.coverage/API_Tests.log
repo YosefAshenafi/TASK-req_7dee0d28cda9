@@ -1,28 +1,420 @@
-go: downloading github.com/jackc/pgx/v5 v5.7.2
-go: downloading github.com/gin-gonic/gin v1.10.0
-go: downloading github.com/gorilla/sessions v1.4.0
-go: downloading github.com/google/uuid v1.6.0
-go: downloading golang.org/x/crypto v0.37.0
-go: downloading github.com/a-h/templ v0.3.819
-go: downloading github.com/gorilla/securecookie v1.1.2
-go: downloading github.com/mattn/go-isatty v0.0.20
-go: downloading golang.org/x/net v0.39.0
-go: downloading github.com/gin-contrib/sse v0.1.0
-go: downloading github.com/go-playground/validator/v10 v10.20.0
-go: downloading github.com/ugorji/go/codec v1.2.12
-go: downloading github.com/pelletier/go-toml/v2 v2.2.2
-go: downloading google.golang.org/protobuf v1.34.2
-go: downloading gopkg.in/yaml.v3 v3.0.1
-go: downloading github.com/jackc/puddle/v2 v2.2.2
-go: downloading github.com/jackc/pgpassfile v1.0.0
-go: downloading github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
-go: downloading golang.org/x/text v0.24.0
-go: downloading golang.org/x/sys v0.32.0
-go: downloading github.com/gabriel-vasile/mimetype v1.4.3
-go: downloading github.com/go-playground/universal-translator v0.18.1
-go: downloading github.com/leodido/go-urn v1.4.0
-go: downloading golang.org/x/sync v0.13.0
-go: downloading github.com/go-playground/locales v0.14.1
-ping: failed to connect to `user=fulfillops database=fulfillops`: hostname resolving error: lookup db on 127.0.0.11:53: no such host
-FAIL	github.com/fulfillops/fulfillops/tests/API_tests	0.015s
-FAIL
+2026/04/17 04:12:20 [200] POST /api/v1/auth/login 213.947875ms (req_id=)
+=== RUN   TestAuditList
+2026/04/17 04:12:20 [200] GET /api/v1/audit 1.963375ms (req_id=)
+--- PASS: TestAuditList (0.00s)
+=== RUN   TestAuditList_RequiresAuth
+2026/04/17 04:12:20 [401] GET /api/v1/audit 16.792µs (req_id=)
+--- PASS: TestAuditList_RequiresAuth (0.00s)
+=== RUN   TestAuditList_ContainsEntries
+2026/04/17 04:12:20 [201] POST /api/v1/tiers 1.80975ms (req_id=)
+2026/04/17 04:12:20 [200] GET /api/v1/audit 804.125µs (req_id=)
+--- PASS: TestAuditList_ContainsEntries (0.00s)
+=== RUN   TestAuditList_SpecialistForbidden
+2026/04/17 04:12:20 [401] GET /api/v1/audit 1.75µs (req_id=)
+--- PASS: TestAuditList_SpecialistForbidden (0.00s)
+=== RUN   TestHealthz
+--- PASS: TestHealthz (0.00s)
+=== RUN   TestAuthLogin_Success
+2026/04/17 04:12:20 [200] POST /api/v1/auth/login 227.855834ms (req_id=)
+--- PASS: TestAuthLogin_Success (0.23s)
+=== RUN   TestAuthLogin_WrongPassword
+2026/04/17 04:12:21 [401] POST /api/v1/auth/login 209.838209ms (req_id=)
+--- PASS: TestAuthLogin_WrongPassword (0.21s)
+=== RUN   TestAuthLogin_MissingBody
+2026/04/17 04:12:21 [400] POST /api/v1/auth/login 5.125µs (req_id=)
+--- PASS: TestAuthLogin_MissingBody (0.00s)
+=== RUN   TestAuthMe_Authenticated
+2026/04/17 04:12:21 [200] GET /api/v1/auth/me 559.75µs (req_id=)
+--- PASS: TestAuthMe_Authenticated (0.00s)
+=== RUN   TestAuthMe_Unauthenticated
+2026/04/17 04:12:21 [401] GET /api/v1/auth/me 2.459µs (req_id=)
+--- PASS: TestAuthMe_Unauthenticated (0.00s)
+=== RUN   TestAuthLogout
+2026/04/17 04:12:21 [200] POST /api/v1/auth/logout 47.417µs (req_id=)
+--- PASS: TestAuthLogout (0.00s)
+=== RUN   TestUnauthenticatedEndpointsReturn401
+2026/04/17 04:12:21 [401] GET /api/v1/tiers 1.291µs (req_id=)
+2026/04/17 04:12:21 [401] GET /api/v1/customers 1.292µs (req_id=)
+2026/04/17 04:12:21 [401] GET /api/v1/fulfillments 1.625µs (req_id=)
+--- PASS: TestUnauthenticatedEndpointsReturn401 (0.00s)
+=== RUN   TestCustomersCreate
+2026/04/17 04:12:21 [201] POST /api/v1/customers 1.675083ms (req_id=)
+--- PASS: TestCustomersCreate (0.00s)
+=== RUN   TestCustomersCreate_MissingName
+2026/04/17 04:12:21 [400] POST /api/v1/customers 37.208µs (req_id=)
+--- PASS: TestCustomersCreate_MissingName (0.00s)
+=== RUN   TestCustomersList
+2026/04/17 04:12:21 [200] GET /api/v1/customers 815.209µs (req_id=)
+--- PASS: TestCustomersList (0.00s)
+=== RUN   TestCustomersGet
+2026/04/17 04:12:21 [201] POST /api/v1/customers 790.708µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/customers/e26d6147-2615-4aed-87a9-b8ee36360dbf 170.167µs (req_id=)
+--- PASS: TestCustomersGet (0.00s)
+=== RUN   TestCustomersGet_NotFound
+2026/04/17 04:12:21 [404] GET /api/v1/customers/00000000-0000-0000-0000-000000000000 108.375µs (req_id=)
+--- PASS: TestCustomersGet_NotFound (0.00s)
+=== RUN   TestCustomersUpdate
+2026/04/17 04:12:21 [201] POST /api/v1/customers 429.459µs (req_id=)
+2026/04/17 04:12:21 [200] PUT /api/v1/customers/6c7550ed-6d4c-4538-985c-ed9e9205ffc7 639.666µs (req_id=)
+--- PASS: TestCustomersUpdate (0.00s)
+=== RUN   TestCustomersSoftDeleteAndRestore
+2026/04/17 04:12:21 [201] POST /api/v1/customers 800.834µs (req_id=)
+2026/04/17 04:12:21 [204] DELETE /api/v1/customers/49a1bae0-4631-4af2-a88f-4678e6edc32b 469.666µs (req_id=)
+2026/04/17 04:12:21 [404] GET /api/v1/customers/49a1bae0-4631-4af2-a88f-4678e6edc32b 78.041µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/customers/49a1bae0-4631-4af2-a88f-4678e6edc32b/restore 619.834µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/customers/49a1bae0-4631-4af2-a88f-4678e6edc32b 88.292µs (req_id=)
+--- PASS: TestCustomersSoftDeleteAndRestore (0.00s)
+=== RUN   TestCustomersCreate_PhoneAndEmailAreMaskedInResponse
+2026/04/17 04:12:21 [201] POST /api/v1/customers 325.083µs (req_id=)
+--- PASS: TestCustomersCreate_PhoneAndEmailAreMaskedInResponse (0.00s)
+=== RUN   TestExceptionsCreate
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 496.25µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 599.917µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 2.054ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 816.041µs (req_id=)
+--- PASS: TestExceptionsCreate (0.00s)
+=== RUN   TestExceptionsList
+2026/04/17 04:12:21 [200] GET /api/v1/exceptions 937.042µs (req_id=)
+--- PASS: TestExceptionsList (0.00s)
+=== RUN   TestExceptionsGet
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 815.125µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 344.167µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 1.004292ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 442.875µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/exceptions/1bf9d7df-915e-4e9d-a519-df9d36e8a783 420.042µs (req_id=)
+--- PASS: TestExceptionsGet (0.00s)
+=== RUN   TestExceptionsGet_NotFound
+2026/04/17 04:12:21 [404] GET /api/v1/exceptions/00000000-0000-0000-0000-000000000000 104.375µs (req_id=)
+--- PASS: TestExceptionsGet_NotFound (0.00s)
+=== RUN   TestExceptionsAddEvent
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 366.334µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 304.666µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 1.346416ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 510.541µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions/8253b8da-06b5-4264-90f3-2e359f61347c/events 555.709µs (req_id=)
+--- PASS: TestExceptionsAddEvent (0.00s)
+=== RUN   TestExceptionsUpdateStatus_Investigating
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 374.458µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 275.792µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 1.396084ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 400.666µs (req_id=)
+2026/04/17 04:12:21 [200] PUT /api/v1/exceptions/29e625d1-2ddc-4ee9-8a8b-b05ab6c525f7/status 632.541µs (req_id=)
+--- PASS: TestExceptionsUpdateStatus_Investigating (0.00s)
+=== RUN   TestExceptionsUpdateStatus_Resolved
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 325.041µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 631.75µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 807.167µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 315.291µs (req_id=)
+2026/04/17 04:12:21 [200] PUT /api/v1/exceptions/1831ac53-e4ef-4be5-8654-a2fd9f3a0b00/status 515.667µs (req_id=)
+--- PASS: TestExceptionsUpdateStatus_Resolved (0.00s)
+=== RUN   TestFulfillmentsCreate
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 306.583µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 256µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 1.081916ms (req_id=)
+--- PASS: TestFulfillmentsCreate (0.00s)
+=== RUN   TestFulfillmentsCreate_MissingTierID
+2026/04/17 04:12:21 [201] POST /api/v1/customers 315.75µs (req_id=)
+2026/04/17 04:12:21 [400] POST /api/v1/fulfillments 17.875µs (req_id=)
+--- PASS: TestFulfillmentsCreate_MissingTierID (0.00s)
+=== RUN   TestFulfillmentsCreate_InventoryUnavailable
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 305.833µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 254.917µs (req_id=)
+2026/04/17 04:12:21 [422] POST /api/v1/fulfillments 294.792µs (req_id=)
+--- PASS: TestFulfillmentsCreate_InventoryUnavailable (0.00s)
+=== RUN   TestFulfillmentsList
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments 525.542µs (req_id=)
+--- PASS: TestFulfillmentsList (0.00s)
+=== RUN   TestFulfillmentsGet
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 389.625µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 951.417µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 961.166µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/a34ce46f-c7b0-4849-817d-87f58fd8c9ad 180.416µs (req_id=)
+--- PASS: TestFulfillmentsGet (0.00s)
+=== RUN   TestFulfillmentsGet_NotFound
+2026/04/17 04:12:21 [404] GET /api/v1/fulfillments/00000000-0000-0000-0000-000000000000 97.916µs (req_id=)
+--- PASS: TestFulfillmentsGet_NotFound (0.00s)
+=== RUN   TestFulfillmentsTransition_DraftToReadyToShip
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 369.5µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 315.709µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 902.542µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/e84857ff-e9ca-4efa-a02b-7a5d892b6afd 97.625µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/e84857ff-e9ca-4efa-a02b-7a5d892b6afd/transition 984µs (req_id=)
+--- PASS: TestFulfillmentsTransition_DraftToReadyToShip (0.00s)
+=== RUN   TestFulfillmentsTransition_ShippedRequiresTracking
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 442.375µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 325.75µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 728.625µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/b627c041-3110-4722-8d66-bac86e59e035 100.125µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/b627c041-3110-4722-8d66-bac86e59e035/transition 868.542µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/b627c041-3110-4722-8d66-bac86e59e035 101.625µs (req_id=)
+2026/04/17 04:12:21 [422] POST /api/v1/fulfillments/b627c041-3110-4722-8d66-bac86e59e035/transition 176.542µs (req_id=)
+--- PASS: TestFulfillmentsTransition_ShippedRequiresTracking (0.00s)
+=== RUN   TestFulfillmentsTransition_InvalidTransition
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 381.5µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 295.958µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 998.958µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/9120bb10-b633-4d3e-b3ce-132e8fbc032c 96.958µs (req_id=)
+2026/04/17 04:12:21 [422] POST /api/v1/fulfillments/9120bb10-b633-4d3e-b3ce-132e8fbc032c/transition 167.25µs (req_id=)
+--- PASS: TestFulfillmentsTransition_InvalidTransition (0.00s)
+=== RUN   TestFulfillmentsTransition_VoucherCannotShip
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 338.417µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 273.875µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 891.375µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/39ddb27f-339d-4cd5-8288-1f90722b71f4 68.583µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/39ddb27f-339d-4cd5-8288-1f90722b71f4/transition 685.25µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/39ddb27f-339d-4cd5-8288-1f90722b71f4 81.583µs (req_id=)
+2026/04/17 04:12:21 [422] POST /api/v1/fulfillments/39ddb27f-339d-4cd5-8288-1f90722b71f4/transition 162.667µs (req_id=)
+--- PASS: TestFulfillmentsTransition_VoucherCannotShip (0.00s)
+=== RUN   TestFulfillmentsTransition_PhysicalCannotIssueVoucher
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 303.917µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 281.292µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 874.291µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/4030bc7a-94c3-4bec-a305-a18ea4e7b2bd 65µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/4030bc7a-94c3-4bec-a305-a18ea4e7b2bd/transition 705.792µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/4030bc7a-94c3-4bec-a305-a18ea4e7b2bd 93.167µs (req_id=)
+2026/04/17 04:12:21 [422] POST /api/v1/fulfillments/4030bc7a-94c3-4bec-a305-a18ea4e7b2bd/transition 141.75µs (req_id=)
+--- PASS: TestFulfillmentsTransition_PhysicalCannotIssueVoucher (0.00s)
+=== RUN   TestFulfillmentsTransition_Cancel
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 294.583µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 279.708µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 703.208µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/2e864faf-4d14-4e82-bf0e-b946144c3bcc 75.625µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/2e864faf-4d14-4e82-bf0e-b946144c3bcc/transition 712.25µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/2e864faf-4d14-4e82-bf0e-b946144c3bcc 73.542µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/2e864faf-4d14-4e82-bf0e-b946144c3bcc/transition 1.131167ms (req_id=)
+--- PASS: TestFulfillmentsTransition_Cancel (0.00s)
+=== RUN   TestFulfillmentsTimeline
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 296.666µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 296.917µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 641.541µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/87c2ff24-7a7d-4721-a2bc-183c3f75a46e 67.541µs (req_id=)
+2026/04/17 04:12:21 [200] POST /api/v1/fulfillments/87c2ff24-7a7d-4721-a2bc-183c3f75a46e/transition 578.542µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/fulfillments/87c2ff24-7a7d-4721-a2bc-183c3f75a46e/timeline 221.333µs (req_id=)
+--- PASS: TestFulfillmentsTimeline (0.00s)
+=== RUN   TestFulfillmentsSoftDelete
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 300.917µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 267.292µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 642.541µs (req_id=)
+2026/04/17 04:12:21 [204] DELETE /api/v1/fulfillments/7564fd05-4075-44e6-a16b-c37e8e6dc123 254.333µs (req_id=)
+--- PASS: TestFulfillmentsSoftDelete (0.00s)
+=== RUN   TestPageRoutesSmoke
+2026/04/17 04:12:21 [303] POST /auth/login 203.374583ms (req_id=)
+2026/04/17 04:12:21 [200] GET /auth/login 40.416µs (req_id=)
+2026/04/17 04:12:21 [401] POST /auth/login 202.609333ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/tiers 1.102917ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/customers 597.958µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/fulfillments 1.186917ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/exceptions 475.959µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/message-templates 463.125µs (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/admin/users 52.807834ms (req_id=)
+2026/04/17 04:12:21 [200] GET / 4.061042ms (req_id=)
+2026/04/17 04:12:21 [200] GET /tiers 1.844583ms (req_id=)
+2026/04/17 04:12:21 [200] GET /tiers/38d62876-74ba-4e68-b58c-fd6ab51aa02c 188µs (req_id=)
+2026/04/17 04:12:21 [200] GET /tiers/new 23.333µs (req_id=)
+2026/04/17 04:12:21 [200] GET /tiers/38d62876-74ba-4e68-b58c-fd6ab51aa02c/edit 101.625µs (req_id=)
+2026/04/17 04:12:21 [200] GET /customers 306.167µs (req_id=)
+2026/04/17 04:12:21 [200] GET /customers/de4db5da-cc87-4caf-961e-f8b8992e59b3 632.75µs (req_id=)
+2026/04/17 04:12:21 [200] GET /customers/new 21.459µs (req_id=)
+2026/04/17 04:12:21 [200] GET /customers/de4db5da-cc87-4caf-961e-f8b8992e59b3/edit 100.875µs (req_id=)
+2026/04/17 04:12:21 [200] GET /fulfillments 2.460875ms (req_id=)
+2026/04/17 04:12:21 [200] GET /fulfillments/5d2d4dd7-c6b0-449f-b3a3-9ead05cc6f84 765.584µs (req_id=)
+2026/04/17 04:12:21 [200] GET /fulfillments/new 1.904875ms (req_id=)
+2026/04/17 04:12:21 [200] GET /exceptions 424.459µs (req_id=)
+2026/04/17 04:12:21 [200] GET /exceptions/aef6a4e4-6257-4412-89e4-aedcb758ba21 201.417µs (req_id=)
+2026/04/17 04:12:21 [200] GET /messages 370.334µs (req_id=)
+2026/04/17 04:12:21 [200] GET /messages/templates/new 34.5µs (req_id=)
+2026/04/17 04:12:21 [200] GET /messages/templates/7ea8aee7-2654-4259-9a59-a4de58e6c07c/edit 254.875µs (req_id=)
+2026/04/17 04:12:21 [200] GET /messages/send-logs 380.917µs (req_id=)
+2026/04/17 04:12:21 [200] GET /messages/handoff 188.083µs (req_id=)
+2026/04/17 04:12:21 [200] GET /notifications 579.042µs (req_id=)
+2026/04/17 04:12:21 [200] GET /reports 18.333µs (req_id=)
+2026/04/17 04:12:21 [200] GET /reports/history 679.834µs (req_id=)
+2026/04/17 04:12:21 [200] GET /audit 1.07275ms (req_id=)
+2026/04/17 04:12:21 [200] GET /settings 531.875µs (req_id=)
+2026/04/17 04:12:21 [200] GET /settings/blackout-dates 392µs (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/health 534.416µs (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/users 690.958µs (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/users/new 30.5µs (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/users/b91ed8d8-308e-4836-a2e1-f5360177d129/edit 117.667µs (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/recovery 2.636ms (req_id=)
+2026/04/17 04:12:21 [200] GET /admin/backups 58.334µs (req_id=)
+2026/04/17 04:12:21 [303] POST /auth/logout 26.5µs (req_id=)
+--- PASS: TestPageRoutesSmoke (0.48s)
+=== RUN   TestPageReportDownloadAuthorization
+2026/04/17 04:12:21 [303] POST /auth/login 203.449667ms (req_id=)
+2026/04/17 04:12:21 [201] POST /api/v1/reports/exports 1.548208ms (req_id=)
+2026/04/17 04:12:21 [200] GET /reports/exports/662f22b8-101e-4a53-8f69-e1743faae6c0/download 4.219833ms (req_id=)
+--- PASS: TestPageReportDownloadAuthorization (0.21s)
+=== RUN   TestReportsList
+2026/04/17 04:12:21 [200] GET /api/v1/reports/exports 687.708µs (req_id=)
+--- PASS: TestReportsList (0.00s)
+=== RUN   TestReportsCreate
+2026/04/17 04:12:21 [201] POST /api/v1/reports/exports 1.156667ms (req_id=)
+--- PASS: TestReportsCreate (0.00s)
+=== RUN   TestReportsGet
+2026/04/17 04:12:21 [201] POST /api/v1/reports/exports 808.708µs (req_id=)
+2026/04/17 04:12:21 [200] GET /api/v1/reports/exports/95878c98-ec8a-4bcf-8afb-df9ef78c8b1b 111.583µs (req_id=)
+--- PASS: TestReportsGet (0.00s)
+=== RUN   TestReportsGet_NotFound
+2026/04/17 04:12:21 [404] GET /api/v1/reports/exports/00000000-0000-0000-0000-000000000000 174.208µs (req_id=)
+--- PASS: TestReportsGet_NotFound (0.00s)
+=== RUN   TestReportsVerifyChecksum_AfterCompletion
+2026/04/17 04:12:21 [201] POST /api/v1/reports/exports 629.459µs (req_id=)
+2026/04/17 04:12:22 [200] GET /api/v1/reports/exports/0d249447-19ae-48ca-a7b5-2593ac850da0 1.679417ms (req_id=)
+2026/04/17 04:12:22 [200] POST /api/v1/reports/exports/0d249447-19ae-48ca-a7b5-2593ac850da0/verify-checksum 1.759458ms (req_id=)
+--- PASS: TestReportsVerifyChecksum_AfterCompletion (0.51s)
+=== RUN   TestReportsDelete
+2026/04/17 04:12:22 [201] POST /api/v1/reports/exports 6.849ms (req_id=)
+2026/04/17 04:12:22 [204] DELETE /api/v1/reports/exports/cd9b1a81-30ce-4e8c-b297-65381f355d59 1.526083ms (req_id=)
+--- PASS: TestReportsDelete (0.01s)
+=== RUN   TestReports_RequiresAuth
+2026/04/17 04:12:22 [401] GET /api/v1/reports/exports 21.583µs (req_id=)
+--- PASS: TestReports_RequiresAuth (0.00s)
+=== RUN   TestReportsSensitive_AuditorCreateForbidden
+2026/04/17 04:12:22 [200] POST /api/v1/auth/login 52.387292ms (req_id=)
+2026/04/17 04:12:22 [403] POST /api/v1/reports/exports 152.792µs (req_id=)
+--- PASS: TestReportsSensitive_AuditorCreateForbidden (0.13s)
+=== RUN   TestReportsSensitive_AuditorGetAndVerifyForbidden
+2026/04/17 04:12:22 [201] POST /api/v1/reports/exports 1.099125ms (req_id=)
+2026/04/17 04:12:22 [200] POST /api/v1/auth/login 50.879541ms (req_id=)
+2026/04/17 04:12:22 [403] GET /api/v1/reports/exports/9540083f-9e18-4e5c-be12-42cf1d9b7dfc 127.833µs (req_id=)
+2026/04/17 04:12:22 [403] POST /api/v1/reports/exports/9540083f-9e18-4e5c-be12-42cf1d9b7dfc/verify-checksum 107.667µs (req_id=)
+--- PASS: TestReportsSensitive_AuditorGetAndVerifyForbidden (0.10s)
+=== RUN   TestTiersCreate
+2026/04/17 04:12:22 [201] POST /api/v1/tiers 805.125µs (req_id=)
+--- PASS: TestTiersCreate (0.00s)
+=== RUN   TestTiersCreate_MissingName
+2026/04/17 04:12:22 [400] POST /api/v1/tiers 32.5µs (req_id=)
+--- PASS: TestTiersCreate_MissingName (0.00s)
+=== RUN   TestTiersCreate_RequiresAdmin
+2026/04/17 04:12:22 [401] POST /api/v1/tiers 2.292µs (req_id=)
+--- PASS: TestTiersCreate_RequiresAdmin (0.00s)
+=== RUN   TestTiersList
+2026/04/17 04:12:22 [200] GET /api/v1/tiers 3.623083ms (req_id=)
+--- PASS: TestTiersList (0.00s)
+=== RUN   TestTiersGet
+2026/04/17 04:12:22 [201] POST /api/v1/tiers 411.542µs (req_id=)
+2026/04/17 04:12:22 [200] GET /api/v1/tiers/395ff522-de45-44a9-8320-1e88ccefcd93 133µs (req_id=)
+--- PASS: TestTiersGet (0.00s)
+=== RUN   TestTiersGet_NotFound
+2026/04/17 04:12:22 [404] GET /api/v1/tiers/00000000-0000-0000-0000-000000000000 85.125µs (req_id=)
+--- PASS: TestTiersGet_NotFound (0.00s)
+=== RUN   TestTiersUpdate
+2026/04/17 04:12:22 [201] POST /api/v1/tiers 334.5µs (req_id=)
+2026/04/17 04:12:22 [200] PUT /api/v1/tiers/66741c29-2316-43f6-b611-c709d804ffec 553.583µs (req_id=)
+--- PASS: TestTiersUpdate (0.00s)
+=== RUN   TestTiersUpdate_VersionConflict
+2026/04/17 04:12:22 [201] POST /api/v1/tiers 313.334µs (req_id=)
+2026/04/17 04:12:22 [200] PUT /api/v1/tiers/df9736f5-49dd-43c3-ae33-8b29c97a454e 384.541µs (req_id=)
+2026/04/17 04:12:22 [409] PUT /api/v1/tiers/df9736f5-49dd-43c3-ae33-8b29c97a454e 79.834µs (req_id=)
+--- PASS: TestTiersUpdate_VersionConflict (0.00s)
+=== RUN   TestTiersSoftDeleteAndRestore
+2026/04/17 04:12:22 [201] POST /api/v1/tiers 282.75µs (req_id=)
+2026/04/17 04:12:22 [204] DELETE /api/v1/tiers/b9984235-de81-48db-a7e8-3191409f1505 365.166µs (req_id=)
+2026/04/17 04:12:22 [404] GET /api/v1/tiers/b9984235-de81-48db-a7e8-3191409f1505 125.791µs (req_id=)
+2026/04/17 04:12:22 [200] POST /api/v1/tiers/b9984235-de81-48db-a7e8-3191409f1505/restore 559.042µs (req_id=)
+2026/04/17 04:12:22 [200] GET /api/v1/tiers/b9984235-de81-48db-a7e8-3191409f1505 63.084µs (req_id=)
+--- PASS: TestTiersSoftDeleteAndRestore (0.00s)
+=== RUN   TestTiersDelete_NotFound
+2026/04/17 04:12:22 [404] DELETE /api/v1/tiers/00000000-0000-0000-0000-000000000000 101.042µs (req_id=)
+--- PASS: TestTiersDelete_NotFound (0.00s)
+=== RUN   TestUsersList
+2026/04/17 04:12:22 [200] GET /api/v1/admin/users 787.666µs (req_id=)
+--- PASS: TestUsersList (0.00s)
+=== RUN   TestUsersCreate
+2026/04/17 04:12:22 [201] POST /api/v1/admin/users 52.790958ms (req_id=)
+--- PASS: TestUsersCreate (0.05s)
+=== RUN   TestUsersCreate_DuplicateUsername
+2026/04/17 04:12:22 [201] POST /api/v1/admin/users 51.508333ms (req_id=)
+2026/04/17 04:12:22 [500] POST /api/v1/admin/users 51.213625ms (req_id=)
+--- PASS: TestUsersCreate_DuplicateUsername (0.10s)
+=== RUN   TestUsersCreate_InvalidRole
+2026/04/17 04:12:22 [422] POST /api/v1/admin/users 39.667µs (req_id=)
+--- PASS: TestUsersCreate_InvalidRole (0.00s)
+=== RUN   TestUsersGet
+2026/04/17 04:12:22 [201] POST /api/v1/admin/users 51.632792ms (req_id=)
+2026/04/17 04:12:22 [200] GET /api/v1/admin/users/0ac989ae-cfa2-4302-9681-7e91ebf520ff 256.791µs (req_id=)
+--- PASS: TestUsersGet (0.05s)
+=== RUN   TestUsersUpdate
+2026/04/17 04:12:22 [201] POST /api/v1/admin/users 52.089459ms (req_id=)
+2026/04/17 04:12:22 [200] PUT /api/v1/admin/users/fc46d4fd-c8f2-4ab6-8e3f-53fa65ea5cc9 1.102709ms (req_id=)
+--- PASS: TestUsersUpdate (0.05s)
+=== RUN   TestUsersDeactivate
+2026/04/17 04:12:22 [201] POST /api/v1/admin/users 51.482084ms (req_id=)
+2026/04/17 04:12:22 [204] DELETE /api/v1/admin/users/07950da2-3c5e-4868-bd31-abb3784c17c8 443.416µs (req_id=)
+--- PASS: TestUsersDeactivate (0.05s)
+=== RUN   TestUsers_RequiresAdminRole
+2026/04/17 04:12:22 [401] GET /api/v1/admin/users 2.583µs (req_id=)
+--- PASS: TestUsers_RequiresAdminRole (0.00s)
+PASS
+coverage: 60.3% of statements in ./internal/repository/...
+ok  	github.com/fulfillops/fulfillops/tests/API_tests	2.491s	coverage: 60.3% of statements in ./internal/repository/...
+=== RUN   TestSendLogRepository_EndToEnd
+--- PASS: TestSendLogRepository_EndToEnd (0.01s)
+=== RUN   TestShippingAddressRepository_EndToEnd
+--- PASS: TestShippingAddressRepository_EndToEnd (0.00s)
+=== RUN   TestMessageTemplateRepository_EndToEnd
+--- PASS: TestMessageTemplateRepository_EndToEnd (0.00s)
+=== RUN   TestSystemSettingRepository_EndToEnd
+--- PASS: TestSystemSettingRepository_EndToEnd (0.00s)
+=== RUN   TestBlackoutDateRepository_EndToEnd
+--- PASS: TestBlackoutDateRepository_EndToEnd (0.00s)
+=== RUN   TestJobRunRepository_EndToEnd
+--- PASS: TestJobRunRepository_EndToEnd (0.00s)
+=== RUN   TestNotificationRepository_EndToEnd
+--- PASS: TestNotificationRepository_EndToEnd (0.00s)
+=== RUN   TestReportExportRepository_EndToEnd
+--- PASS: TestReportExportRepository_EndToEnd (0.00s)
+=== RUN   TestUserRepository_DeactivateAndListByRole
+--- PASS: TestUserRepository_DeactivateAndListByRole (0.00s)
+=== RUN   TestConnection_NewDB_BadURL
+--- PASS: TestConnection_NewDB_BadURL (0.00s)
+=== RUN   TestReservationRepository_Lifecycle
+--- PASS: TestReservationRepository_Lifecycle (0.00s)
+=== RUN   TestAuditRepository_ListWithFilters
+--- PASS: TestAuditRepository_ListWithFilters (0.00s)
+=== RUN   TestTierRepository_RestoreAndList
+--- PASS: TestTierRepository_RestoreAndList (0.01s)
+=== RUN   TestCustomerRepository_RestoreAndSearch
+--- PASS: TestCustomerRepository_RestoreAndSearch (0.01s)
+=== RUN   TestFulfillmentRepository_ListFiltersAndSoftDelete
+--- PASS: TestFulfillmentRepository_ListFiltersAndSoftDelete (0.00s)
+=== RUN   TestExceptionRepository_ListFiltersAndLifecycle
+--- PASS: TestExceptionRepository_ListFiltersAndLifecycle (0.00s)
+=== RUN   TestShippingAddressRepository_TxCreateAndUpdate
+--- PASS: TestShippingAddressRepository_TxCreateAndUpdate (0.00s)
+=== RUN   TestUserRepository_ListAllBranches
+--- PASS: TestUserRepository_ListAllBranches (0.00s)
+=== RUN   TestJobRunRepository_ListAllFilters
+--- PASS: TestJobRunRepository_ListAllFilters (0.00s)
+=== RUN   TestTxManager_Rollback
+--- PASS: TestTxManager_Rollback (0.00s)
+=== RUN   TestTxManager_PanicRecovery
+--- PASS: TestTxManager_PanicRecovery (0.00s)
+=== RUN   TestTxManager_BeginError
+--- PASS: TestTxManager_BeginError (0.00s)
+=== RUN   TestClosedPool_ErrorPaths
+--- PASS: TestClosedPool_ErrorPaths (0.00s)
+=== RUN   TestExceptionRepository_GetByID
+--- PASS: TestExceptionRepository_GetByID (0.00s)
+=== RUN   TestTierCreateAndGet
+--- PASS: TestTierCreateAndGet (0.00s)
+=== RUN   TestTierDecrementInventory
+--- PASS: TestTierDecrementInventory (0.00s)
+=== RUN   TestTierVersionConflict
+--- PASS: TestTierVersionConflict (0.00s)
+=== RUN   TestTierSoftDelete
+--- PASS: TestTierSoftDelete (0.00s)
+=== RUN   TestFulfillmentVersionConflict
+--- PASS: TestFulfillmentVersionConflict (0.00s)
+=== RUN   TestFulfillmentCountByCustomerAndTier
+--- PASS: TestFulfillmentCountByCustomerAndTier (0.00s)
+=== RUN   TestTransactionRollback
+--- PASS: TestTransactionRollback (0.00s)
+=== RUN   TestConcurrentSelectForUpdate
+--- PASS: TestConcurrentSelectForUpdate (0.03s)
+=== RUN   TestCustomerSoftDelete
+--- PASS: TestCustomerSoftDelete (0.00s)
+PASS
+coverage: 89.4% of statements in ./internal/repository/...
+ok  	github.com/fulfillops/fulfillops/internal/repository	0.098s	coverage: 89.4% of statements in ./internal/repository/...

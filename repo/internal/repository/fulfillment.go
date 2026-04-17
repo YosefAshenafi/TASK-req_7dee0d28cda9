@@ -195,7 +195,7 @@ func (r *pgFulfillmentRepo) ListOverdue(ctx context.Context) ([]domain.Fulfillme
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+fulfillmentCols+`
 		 FROM fulfillments
-		 WHERE status IN ('READY_TO_SHIP','SHIPPED','VOUCHER_ISSUED')
+		 WHERE status = 'READY_TO_SHIP'
 		   AND ready_at IS NOT NULL AND deleted_at IS NULL
 		 ORDER BY ready_at`)
 	if err != nil {

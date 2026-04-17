@@ -64,9 +64,9 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 		d.Store, d.FulfillSvc, d.FulfillRepo, d.TierRepo, d.CustomerRepo,
 		d.TimelineRepo, d.ShippingRepo, d.ExceptionRepo, d.EncSvc,
 	)
-	pageException := NewPageExceptionHandler(d.Store, d.ExceptionRepo, d.ExEventRepo)
+	pageException := NewPageExceptionHandler(d.Store, d.ExceptionRepo, d.ExEventRepo).WithExceptionService(d.ExceptionSvc)
 	pageMessage := NewPageMessageHandler(d.Store, d.TemplateRepo, d.SendLogRepo, d.NotifRepo)
-	pageReport := NewPageReportHandler(d.Store, d.ReportRepo)
+	pageReport := NewPageReportHandler(d.Store, d.ReportRepo, d.ExportSvc)
 	pageAudit := NewPageAuditHandler(d.Store, d.AuditRepo)
 	pageSettings := NewPageSettingsHandler(d.Store, d.SettingRepo, d.BlackoutRepo)
 	pageAdmin := NewPageAdminHandler(
@@ -132,6 +132,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOnlyPage.GET("/messages/templates/:id/edit", pageMessage.ShowEditTemplate)
 	adminOnlyPage.POST("/messages/templates/:id", pageMessage.PostUpdateTemplate)
 	adminOnlyPage.POST("/messages/templates/:id/delete", pageMessage.PostDeleteTemplate)
+	adminOnlyPage.POST("/messages/templates/:id/restore", pageMessage.PostRestoreTemplate)
 	adminOrSpecPage.GET("/messages/send-logs", pageMessage.ShowSendLogs)
 	adminOrSpecPage.GET("/messages/handoff", pageMessage.ShowHandoffQueue)
 	adminOrSpecPage.POST("/messages/send-logs/:id/printed", pageMessage.PostMarkPrinted)
@@ -145,6 +146,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOrAuditPage.POST("/reports/exports", pageReport.PostGenerateExport)
 	adminOrAuditPage.GET("/reports/history", pageReport.ShowHistory)
 	adminOrAuditPage.POST("/reports/exports/:id/verify", pageReport.PostVerifyExport)
+	adminOrAuditPage.GET("/reports/exports/:id/download", pageReport.DownloadExport)
 
 	// Audit
 	adminOrAuditPage.GET("/audit", pageAudit.List)
@@ -202,7 +204,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOnly.POST("/tiers/:id/restore", tiers.Restore)
 
 	// Customers
-	customers := NewCustomerHandler(d.CustomerRepo, d.EncSvc)
+	customers := NewCustomerHandler(d.CustomerRepo, d.EncSvc).WithAudit(d.AuditSvc)
 	authed.GET("/customers", customers.List)
 	adminOrSpecialist.POST("/customers", customers.Create)
 	authed.GET("/customers/:id", customers.Get)
@@ -250,7 +252,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOnly.DELETE("/reports/exports/:id", reports.Delete)
 
 	// Settings
-	settings := NewSettingsHandler(d.SettingRepo, d.BlackoutRepo)
+	settings := NewSettingsHandler(d.SettingRepo, d.BlackoutRepo).WithAudit(d.AuditSvc)
 	authed.GET("/settings", settings.GetAll)
 	adminOnly.PUT("/settings/:key", settings.Set)
 	authed.GET("/settings/blackout-dates", settings.ListBlackoutDates)

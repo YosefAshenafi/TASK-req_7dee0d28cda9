@@ -59,7 +59,9 @@ func buildFulfillmentService(t *testing.T) service.FulfillmentService {
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
 	auditRepo := repository.NewAuditRepository(svcPool)
 	auditSvc := service.NewAuditService(auditRepo)
-	return service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, invSvc, auditSvc)
+	shippingRepo := repository.NewShippingAddressRepository(svcPool)
+	notifRepo := repository.NewNotificationRepository(svcPool)
+	return service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 }
 
 // ── Transition Tests ──────────────────────────────────────────────────────────

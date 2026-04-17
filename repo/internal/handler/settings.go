@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -10,12 +11,14 @@ import (
 	"github.com/fulfillops/fulfillops/internal/domain"
 	"github.com/fulfillops/fulfillops/internal/middleware"
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 )
 
 // SettingsHandler handles system settings and blackout date endpoints.
 type SettingsHandler struct {
 	settingRepo  repository.SystemSettingRepository
 	blackoutRepo repository.BlackoutDateRepository
+	auditSvc     service.AuditService
 }
 
 func NewSettingsHandler(
@@ -23,6 +26,12 @@ func NewSettingsHandler(
 	blackoutRepo repository.BlackoutDateRepository,
 ) *SettingsHandler {
 	return &SettingsHandler{settingRepo: settingRepo, blackoutRepo: blackoutRepo}
+}
+
+// WithAudit attaches an AuditService so settings writes are audit-logged.
+func (h *SettingsHandler) WithAudit(auditSvc service.AuditService) *SettingsHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 type setSettingRequest struct {
@@ -62,7 +71,24 @@ func (h *SettingsHandler) Set(c *gin.Context) {
 	actorRaw, _ := c.Get("userID")
 	actorID, _ := actorRaw.(uuid.UUID)
 
-	if err := h.settingRepo.Set(c.Request.Context(), key, []byte(req.Value), &actorID); err != nil {
+	// Store as JSON so consumers using json.Unmarshal can decode the value.
+	// If value is already valid JSON (e.g. a JSON array), store as-is; otherwise JSON-encode as a string.
+	var jsonValue []byte
+	if json.Valid([]byte(req.Value)) {
+		jsonValue = []byte(req.Value)
+	} else {
+		var err error
+		jsonValue, err = json.Marshal(req.Value)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: "invalid value"})
+			return
+		}
+	}
+
+	// Capture "before" for audit.
+	before, _ := h.settingRepo.Get(c.Request.Context(), key)
+
+	if err := h.settingRepo.Set(c.Request.Context(), key, jsonValue, &actorID); err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
 	}
@@ -71,6 +97,14 @@ func (h *SettingsHandler) Set(c *gin.Context) {
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
+	}
+
+	if h.auditSvc != nil {
+		id := uuid.Nil
+		if setting != nil {
+			id = setting.ID
+		}
+		_ = h.auditSvc.Log(c.Request.Context(), "system_settings", id, "UPDATE", before, setting)
 	}
 
 	c.JSON(http.StatusOK, setting)

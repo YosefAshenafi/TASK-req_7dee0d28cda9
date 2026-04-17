@@ -65,13 +65,13 @@ templ Backups(pctx view.PageCtx, d BackupsData) {
 												<div class="modal-header">Restore from Backup <button class="modal-close" onclick={ closeModalExpr(b.ID) }>×</button></div>
 												<div class="modal-body">
 													<div class="flash flash-warning">This will overwrite the current database. This action cannot be undone.</div>
-													<div class="form-check" style="margin-top:12px">
-														<input type="checkbox" id={ "integrity-" + b.ID } name="verify_integrity" required/>
-														<label for={ "integrity-" + b.ID }>Verify referential integrity after restore</label>
-													</div>
 												</div>
 												<form method="POST" action={ templ.SafeURL("/admin/backups/" + b.ID + "/restore") }>
 													<input type="hidden" name="backup_id" value={ b.ID }/>
+													<div class="form-check" style="margin:12px 0">
+														<input type="checkbox" id={ "integrity-" + b.ID } name="verify_integrity" checked/>
+														<label for={ "integrity-" + b.ID }>Verify referential integrity after restore</label>
+													</div>
 													<div class="modal-footer">
 														<button type="button" class="btn btn-secondary" onclick={ closeModalExpr(b.ID) }>Cancel</button>
 														<button type="submit" class="btn btn-danger">Restore Database</button>

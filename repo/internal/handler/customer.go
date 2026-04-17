@@ -18,10 +18,17 @@ import (
 type CustomerHandler struct {
 	customerRepo repository.CustomerRepository
 	encSvc       service.EncryptionService
+	auditSvc     service.AuditService
 }
 
 func NewCustomerHandler(customerRepo repository.CustomerRepository, encSvc service.EncryptionService) *CustomerHandler {
 	return &CustomerHandler{customerRepo: customerRepo, encSvc: encSvc}
+}
+
+// WithAudit attaches an AuditService so write operations are logged.
+func (h *CustomerHandler) WithAudit(auditSvc service.AuditService) *CustomerHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 type createCustomerRequest struct {
@@ -139,6 +146,10 @@ func (h *CustomerHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "customers", created.ID, "CREATE", nil, created)
+	}
+
 	c.JSON(http.StatusCreated, h.toResponse(created))
 }
 
@@ -204,10 +215,16 @@ func (h *CustomerHandler) Update(c *gin.Context) {
 		customer.AddressEncrypted = enc
 	}
 
+	// Preload the existing record for audit "before" state.
+	before, _ := h.customerRepo.GetByID(c.Request.Context(), id)
 	updated, err := h.customerRepo.Update(c.Request.Context(), customer)
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "customers", updated.ID, "UPDATE", before, updated)
 	}
 
 	c.JSON(http.StatusOK, h.toResponse(updated))
@@ -229,6 +246,10 @@ func (h *CustomerHandler) SoftDelete(c *gin.Context) {
 		return
 	}
 
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "customers", id, "DELETE", nil, nil)
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -243,6 +264,10 @@ func (h *CustomerHandler) Restore(c *gin.Context) {
 	if err := h.customerRepo.Restore(c.Request.Context(), id); err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "customers", id, "RESTORE", nil, nil)
 	}
 
 	customer, err := h.customerRepo.GetByID(c.Request.Context(), id)

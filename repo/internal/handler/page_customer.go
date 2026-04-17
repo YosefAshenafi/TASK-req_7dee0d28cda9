@@ -138,19 +138,28 @@ func (h *PageCustomerHandler) PostCreate(c *gin.Context) {
 	ctx := c.Request.Context()
 	cu := &domain.Customer{Name: c.PostForm("name")}
 	if p := c.PostForm("phone"); p != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(p)); err == nil {
-			cu.PhoneEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(p))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/new", "error", "Encryption failed.")
+			return
 		}
+		cu.PhoneEncrypted = enc
 	}
 	if e := c.PostForm("email"); e != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(e)); err == nil {
-			cu.EmailEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(e))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/new", "error", "Encryption failed.")
+			return
 		}
+		cu.EmailEncrypted = enc
 	}
 	if addr := buildAddressStr(c); addr != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(addr)); err == nil {
-			cu.AddressEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(addr))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/new", "error", "Encryption failed.")
+			return
 		}
+		cu.AddressEncrypted = enc
 	}
 	if _, err := h.customerRepo.Create(ctx, cu); err != nil {
 		redirectWithFlash(c, h.store, "/customers/new", "error", err.Error())
@@ -162,26 +171,52 @@ func (h *PageCustomerHandler) PostCreate(c *gin.Context) {
 func (h *PageCustomerHandler) PostUpdate(c *gin.Context) {
 	ctx := c.Request.Context()
 	id, _ := uuid.Parse(c.Param("id"))
+
+	existing, err := h.customerRepo.GetByID(ctx, id)
+	if err != nil {
+		redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", "Customer not found.")
+		return
+	}
+
 	cu := &domain.Customer{
 		ID:      id,
 		Name:    c.PostForm("name"),
 		Version: formInt(c, "version"),
 	}
+
 	if p := c.PostForm("phone"); p != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(p)); err == nil {
-			cu.PhoneEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(p))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", "Encryption failed.")
+			return
 		}
+		cu.PhoneEncrypted = enc
+	} else {
+		cu.PhoneEncrypted = existing.PhoneEncrypted
 	}
+
 	if e := c.PostForm("email"); e != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(e)); err == nil {
-			cu.EmailEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(e))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", "Encryption failed.")
+			return
 		}
+		cu.EmailEncrypted = enc
+	} else {
+		cu.EmailEncrypted = existing.EmailEncrypted
 	}
+
 	if addr := buildAddressStr(c); addr != "" {
-		if enc, err := h.encSvc.Encrypt([]byte(addr)); err == nil {
-			cu.AddressEncrypted = enc
+		enc, err := h.encSvc.Encrypt([]byte(addr))
+		if err != nil {
+			redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", "Encryption failed.")
+			return
 		}
+		cu.AddressEncrypted = enc
+	} else {
+		cu.AddressEncrypted = existing.AddressEncrypted
 	}
+
 	if _, err := h.customerRepo.Update(ctx, cu); err != nil {
 		redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", err.Error())
 		return
@@ -194,7 +229,10 @@ func (h *PageCustomerHandler) PostDelete(c *gin.Context) {
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
-	_ = h.customerRepo.SoftDelete(ctx, id, deletedBy)
+	if err := h.customerRepo.SoftDelete(ctx, id, deletedBy); err != nil {
+		redirectWithFlash(c, h.store, "/customers/"+id.String(), "error", "Delete failed: "+err.Error())
+		return
+	}
 	redirectWithFlash(c, h.store, "/customers", "success", "Customer deleted.")
 }
 

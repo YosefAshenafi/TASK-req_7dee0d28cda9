@@ -13,7 +13,7 @@ import (
 func TestPhysicalFulfillmentLifecycle(t *testing.T) {
 	// 1. Create tier.
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-lifecycle-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-lifecycle-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -45,24 +45,21 @@ func TestPhysicalFulfillmentLifecycle(t *testing.T) {
 	}
 
 	// 4. DRAFT → READY_TO_SHIP.
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	rr = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 	mustStatus(t, rr, http.StatusOK)
 
 	// 5. READY_TO_SHIP → SHIPPED (tracking required).
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition", map[string]any{
+	rr = transition(t, ffID, map[string]any{
 		"to_status": "SHIPPED", "carrier_name": "FedEx", "tracking_number": "1Z999AA10123456784",
 	})
 	mustStatus(t, rr, http.StatusOK)
 
 	// 6. SHIPPED → DELIVERED.
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "DELIVERED"})
+	rr = transition(t, ffID, map[string]any{"to_status": "DELIVERED"})
 	mustStatus(t, rr, http.StatusOK)
 
 	// 7. DELIVERED → COMPLETED.
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "COMPLETED"})
+	rr = transition(t, ffID, map[string]any{"to_status": "COMPLETED"})
 	mustStatus(t, rr, http.StatusOK)
 	if decode(t, rr)["status"] != "COMPLETED" {
 		t.Fatal("expected final status COMPLETED")
@@ -82,7 +79,7 @@ func TestPhysicalFulfillmentLifecycle(t *testing.T) {
 
 func TestVoucherFulfillmentLifecycle(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-voucher-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-voucher-%d", time.Now().UnixNano()),
 		"inventory_count": 3, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -101,11 +98,11 @@ func TestVoucherFulfillmentLifecycle(t *testing.T) {
 	// DRAFT → READY_TO_SHIP → VOUCHER_ISSUED → COMPLETED.
 	steps := []map[string]any{
 		{"to_status": "READY_TO_SHIP"},
-		{"to_status": "VOUCHER_ISSUED"},
+		{"to_status": "VOUCHER_ISSUED", "voucher_code": "E2E-VOUCHER-001"},
 		{"to_status": "COMPLETED"},
 	}
 	for _, step := range steps {
-		rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition", step)
+		rr = transition(t, ffID, step)
 		mustStatus(t, rr, http.StatusOK)
 	}
 	if decode(t, rr)["status"] != "COMPLETED" {
@@ -117,7 +114,7 @@ func TestVoucherFulfillmentLifecycle(t *testing.T) {
 
 func TestCancelRestoresInventory(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-cancel-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-cancel-%d", time.Now().UnixNano()),
 		"inventory_count": 3, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -139,12 +136,10 @@ func TestCancelRestoresInventory(t *testing.T) {
 		t.Fatalf("inventory after create: want 2, got %d", inv)
 	}
 
-	do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	_ = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 
 	// Cancel from READY_TO_SHIP.
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "CANCELED", "reason": "E2E cancel test"})
+	rr = transition(t, ffID, map[string]any{"to_status": "CANCELED", "reason": "E2E cancel test"})
 	mustStatus(t, rr, http.StatusOK)
 
 	// Inventory must be restored to 3.
@@ -158,7 +153,7 @@ func TestCancelRestoresInventory(t *testing.T) {
 
 func TestOnHoldAndResume(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-hold-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-hold-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -175,18 +170,15 @@ func TestOnHoldAndResume(t *testing.T) {
 	ffID := decode(t, rr)["id"].(string)
 
 	// DRAFT → READY_TO_SHIP → ON_HOLD → READY_TO_SHIP.
-	do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	_ = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "ON_HOLD"})
+	rr = transition(t, ffID, map[string]any{"to_status": "ON_HOLD", "reason": "e2e hold"})
 	mustStatus(t, rr, http.StatusOK)
 	if decode(t, rr)["status"] != "ON_HOLD" {
 		t.Fatal("expected ON_HOLD status")
 	}
 
-	rr = do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	rr = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 	mustStatus(t, rr, http.StatusOK)
 	if decode(t, rr)["status"] != "READY_TO_SHIP" {
 		t.Fatal("expected READY_TO_SHIP after resuming from hold")
@@ -197,7 +189,7 @@ func TestOnHoldAndResume(t *testing.T) {
 
 func TestTierSoftDeleteAndRestore(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-delrestore-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-delrestore-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)

@@ -88,7 +88,7 @@ func buildRouter(dbURL string) *gin.Engine {
 	auditSvc := service.NewAuditService(auditRepo)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
-	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, invSvc, auditSvc)
+	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
 	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
 
@@ -128,32 +128,32 @@ func buildRouter(dbURL string) *gin.Engine {
 	})
 
 	handler.RegisterRoutes(r, handler.Deps{
-		Pool:         testPool,
-		Store:        store,
-		UserSvc:      userSvc,
-		FulfillSvc:   fulfillSvc,
-		ExceptionSvc: exceptionSvc,
-		MessagingSvc: messagingSvc,
-		AuditSvc:     auditSvc,
-		EncSvc:       enc,
-		ExportSvc:    exportSvc,
-		BackupSvc:    backupSvc,
-		TierRepo:     tierRepo,
-		CustomerRepo: customerRepo,
-		FulfillRepo:  fulfillRepo,
-		TimelineRepo: timelineRepo,
-		ShippingRepo: shippingRepo,
+		Pool:          testPool,
+		Store:         store,
+		UserSvc:       userSvc,
+		FulfillSvc:    fulfillSvc,
+		ExceptionSvc:  exceptionSvc,
+		MessagingSvc:  messagingSvc,
+		AuditSvc:      auditSvc,
+		EncSvc:        enc,
+		ExportSvc:     exportSvc,
+		BackupSvc:     backupSvc,
+		TierRepo:      tierRepo,
+		CustomerRepo:  customerRepo,
+		FulfillRepo:   fulfillRepo,
+		TimelineRepo:  timelineRepo,
+		ShippingRepo:  shippingRepo,
 		ExceptionRepo: exceptionRepo,
-		ExEventRepo:  exEventRepo,
-		TemplateRepo: templateRepo,
-		SendLogRepo:  sendLogRepo,
-		NotifRepo:    notifRepo,
-		ReportRepo:   reportRepo,
-		AuditRepo:    auditRepo,
-		SettingRepo:  settingRepo,
-		BlackoutRepo: blackoutRepo,
-		JobRunRepo:   jobRunRepo,
-		UserRepo:     userRepo,
+		ExEventRepo:   exEventRepo,
+		TemplateRepo:  templateRepo,
+		SendLogRepo:   sendLogRepo,
+		NotifRepo:     notifRepo,
+		ReportRepo:    reportRepo,
+		AuditRepo:     auditRepo,
+		SettingRepo:   settingRepo,
+		BlackoutRepo:  blackoutRepo,
+		JobRunRepo:    jobRunRepo,
+		UserRepo:      userRepo,
 	})
 	return r
 }
@@ -206,6 +206,20 @@ func decodeJSON(t *testing.T, rr *httptest.ResponseRecorder) map[string]any {
 	return m
 }
 
+func transitionAuthed(t *testing.T, ffID string, payload map[string]any) *httptest.ResponseRecorder {
+	t.Helper()
+	rr := do(authedRequest(http.MethodGet, "/api/v1/fulfillments/"+ffID, nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("load fulfillment for version: %d %s", rr.Code, rr.Body.String())
+	}
+	version := int(decodeJSON(t, rr)["version"].(float64))
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	payload["version"] = version
+	return do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition", payload))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 // TestHealthz verifies the unauthenticated health endpoint.
@@ -224,7 +238,7 @@ func TestFulfillmentLifecycle(t *testing.T) {
 
 	// Create tier.
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("lifecycle-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("lifecycle-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -257,29 +271,25 @@ func TestFulfillmentLifecycle(t *testing.T) {
 	}
 
 	// DRAFT → READY_TO_SHIP
-	rr = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"}))
+	rr = transitionAuthed(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("→ READY_TO_SHIP: %d %s", rr.Code, rr.Body.String())
 	}
 
 	// READY_TO_SHIP → SHIPPED (requires tracking)
-	rr = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "SHIPPED", "carrier_name": "FedEx", "tracking_number": "1Z999AA10123456784"}))
+	rr = transitionAuthed(t, ffID, map[string]any{"to_status": "SHIPPED", "carrier_name": "FedEx", "tracking_number": "1Z999AA10123456784"})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("→ SHIPPED: %d %s", rr.Code, rr.Body.String())
 	}
 
 	// SHIPPED → DELIVERED
-	rr = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "DELIVERED"}))
+	rr = transitionAuthed(t, ffID, map[string]any{"to_status": "DELIVERED"})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("→ DELIVERED: %d %s", rr.Code, rr.Body.String())
 	}
 
 	// DELIVERED → COMPLETED
-	rr = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "COMPLETED"}))
+	rr = transitionAuthed(t, ffID, map[string]any{"to_status": "COMPLETED"})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("→ COMPLETED: %d %s", rr.Code, rr.Body.String())
 	}
@@ -316,7 +326,7 @@ func TestFulfillmentLifecycle(t *testing.T) {
 func TestCancelFlow(t *testing.T) {
 	// Create tier.
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("cancel-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("cancel-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 3, "purchase_limit": 2, "alert_threshold": 1,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -342,12 +352,10 @@ func TestCancelFlow(t *testing.T) {
 	ffID := decodeJSON(t, rr)["id"].(string)
 
 	// Inventory decremented to 2.
-	_ = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"}))
+	_ = transitionAuthed(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
 
 	// Cancel from READY_TO_SHIP.
-	rr = do(authedRequest(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-		map[string]any{"to_status": "CANCELED", "reason": "Customer request"}))
+	rr = transitionAuthed(t, ffID, map[string]any{"to_status": "CANCELED", "reason": "Customer request"})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("cancel: %d %s", rr.Code, rr.Body.String())
 	}
@@ -364,7 +372,7 @@ func TestCancelFlow(t *testing.T) {
 // inventory=1 result in exactly one success and one INVENTORY_UNAVAILABLE error.
 func TestConcurrentInventory(t *testing.T) {
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("concurrent-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("concurrent-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 1, "purchase_limit": 5, "alert_threshold": 0,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -420,7 +428,7 @@ func TestConcurrentInventory(t *testing.T) {
 // TestPurchaseLimitReached verifies the 2-per-tier-per-30-days limit.
 func TestPurchaseLimitReached(t *testing.T) {
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("limit-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("limit-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 10, "purchase_limit": 2, "alert_threshold": 0,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -458,7 +466,7 @@ func TestPurchaseLimitReached(t *testing.T) {
 // TestSoftDeleteRestore verifies soft-delete and restore of a tier.
 func TestSoftDeleteRestore(t *testing.T) {
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("delete-restore-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("delete-restore-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -602,7 +610,7 @@ func TestRBACAccessControl(t *testing.T) {
 func TestExceptionFlow(t *testing.T) {
 	// Create tier + customer + fulfillment.
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("exception-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("exception-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	}))
 	tierID := decodeJSON(t, rr)["id"].(string)
@@ -651,7 +659,7 @@ func TestExceptionFlow(t *testing.T) {
 // TestReportExportFlow verifies CSV generation and checksum verification.
 func TestReportExportFlow(t *testing.T) {
 	rr := do(authedRequest(http.MethodPost, "/api/v1/reports/exports", map[string]any{
-		"report_type": "fulfillments",
+		"report_type":       "fulfillments",
 		"include_sensitive": false,
 	}))
 	if rr.Code != http.StatusCreated {
@@ -693,7 +701,7 @@ func TestReportExportFlow(t *testing.T) {
 // concurrent overwrites via version mismatch.
 func TestConflictOnStaleVersion(t *testing.T) {
 	rr := do(authedRequest(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("conflict-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("conflict-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	}))
 	if rr.Code != http.StatusCreated {

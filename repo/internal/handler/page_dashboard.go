@@ -56,18 +56,26 @@ func (h *PageDashboardHandler) Show(c *gin.Context) {
 		}
 	}
 
+	// Date-scoped "today" = UTC midnight..now (matches created_at column semantics).
+	now := time.Now().UTC()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	_, fulfilledToday, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{
-		Status: domain.StatusCompleted,
+		Status:   domain.StatusCompleted,
+		DateFrom: &startOfDay,
+		DateTo:   &now,
 	}, domain.PageRequest{Page: 1, PageSize: 1})
 
-	queuedLogs, _ := h.sendLogRepo.GetRetryable(ctx, time.Now().Add(24*time.Hour))
+	// True "queued messages" = actual QUEUED rows in send_logs (not retryable).
+	_, queuedCount, _ := h.sendLogRepo.List(ctx, repository.SendLogFilters{
+		Status: domain.SendQueued,
+	}, domain.PageRequest{Page: 1, PageSize: 1})
 
 	d := view.DashboardData{
 		PendingCount:      pendingDraft + pendingReady,
 		OverdueExceptions: len(openExceptions),
 		ThresholdAlerts:   alerts,
 		FulfilledToday:    fulfilledToday,
-		QueuedMessages:    len(queuedLogs),
+		QueuedMessages:    queuedCount,
 	}
 
 	renderPage(c, http.StatusOK, view.Dashboard(pctx, d))

@@ -34,9 +34,9 @@ templ SendLogs(pctx view.PageCtx, d SendLogsData) {
 					<input name="recipient" type="text" class="form-control" placeholder="Recipient…" value={ d.Recipient }/>
 					<select name="channel" class="form-control">
 						<option value="">All Channels</option>
-						<option value="in_app" selected?={ d.Channel == "in_app" }>In-App</option>
-						<option value="sms" selected?={ d.Channel == "sms" }>SMS</option>
-						<option value="email" selected?={ d.Channel == "email" }>Email</option>
+						<option value="IN_APP" selected?={ d.Channel == "IN_APP" }>In-App</option>
+						<option value="SMS" selected?={ d.Channel == "SMS" }>SMS</option>
+						<option value="EMAIL" selected?={ d.Channel == "EMAIL" }>Email</option>
 					</select>
 					<select name="status" class="form-control">
 						<option value="">All Statuses</option>

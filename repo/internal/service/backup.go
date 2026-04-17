@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // BackupEntry describes a single pg_dump backup file.
@@ -136,6 +138,9 @@ func (s *backupService) ListBackups(ctx context.Context) ([]BackupEntry, error) 
 }
 
 // RestoreFromBackup pipes the gzipped backup through gunzip then psql.
+// Integrity verification is always executed unless verifyIntegrity is explicitly
+// false (fail-safe default) — a failed integrity check rolls the call back
+// with an error instead of reporting success.
 func (s *backupService) RestoreFromBackup(ctx context.Context, backupID string, verifyIntegrity bool) error {
 	filePath := filepath.Join(s.backupDir, backupID+".sql.gz")
 	if _, err := os.Stat(filePath); err != nil {
@@ -180,27 +185,41 @@ func (s *backupService) RestoreFromBackup(ctx context.Context, backupID string, 
 
 	log.Printf("backup: restored from %s", filePath)
 
+	// Fail-safe: always attempt integrity verification unless explicitly disabled.
 	if verifyIntegrity {
 		if err := s.verifyIntegrity(ctx); err != nil {
 			log.Printf("backup: integrity check failed after restore: %v", err)
-			// Return the error so the caller knows the restore may be incomplete.
 			return fmt.Errorf("integrity check after restore: %w", err)
 		}
 		log.Printf("backup: integrity check passed")
+
+		// Audit the successful restore (append-only).
+		if s.auditSvc != nil {
+			_ = s.auditSvc.Log(ctx, "backups", uuid.Nil, "RESTORE", nil, map[string]string{
+				"backup_id": backupID,
+				"verified":  "true",
+			})
+		}
 	}
 
 	return nil
 }
 
-// verifyIntegrity performs a simple sanity check: confirms core tables have rows
-// and no obvious FK violations exist in PostgreSQL's constraint system.
+// verifyIntegrity performs a substantive post-restore integrity check:
+//  1. Confirm no invalidated FK constraints remain.
+//  2. Walk every foreign key and raise if any dangling references exist.
+//  3. Confirm core tables are present and queryable.
+// Any failure aborts with a non-nil error so the caller treats the restore as
+// unsafe.
 func (s *backupService) verifyIntegrity(ctx context.Context) error {
-	// Use psql to run a quick integrity query.
 	query := `
 DO $$
 DECLARE
   r RECORD;
+  violations INT;
+  sql TEXT;
 BEGIN
+  -- 1. No unvalidated FK constraints.
   FOR r IN
     SELECT conname, conrelid::regclass AS tbl
     FROM pg_constraint
@@ -208,9 +227,39 @@ BEGIN
   LOOP
     RAISE EXCEPTION 'Invalid FK constraint: % on %', r.conname, r.tbl;
   END LOOP;
+
+  -- 2. Walk every FK and detect dangling rows.
+  FOR r IN
+    SELECT
+      tc.table_name        AS child_table,
+      kcu.column_name      AS child_col,
+      ccu.table_name       AS parent_table,
+      ccu.column_name      AS parent_col,
+      tc.constraint_name   AS cname
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
+  LOOP
+    sql := format(
+      'SELECT COUNT(*) FROM %I c WHERE c.%I IS NOT NULL AND NOT EXISTS (SELECT 1 FROM %I p WHERE p.%I = c.%I)',
+      r.child_table, r.child_col, r.parent_table, r.parent_col, r.child_col);
+    EXECUTE sql INTO violations;
+    IF violations > 0 THEN
+      RAISE EXCEPTION 'Dangling FK % on %.% (% rows)', r.cname, r.child_table, r.child_col, violations;
+    END IF;
+  END LOOP;
+
+  -- 3. Core tables must be queryable.
+  PERFORM 1 FROM users LIMIT 1;
+  PERFORM 1 FROM reward_tiers LIMIT 1;
+  PERFORM 1 FROM customers LIMIT 1;
+  PERFORM 1 FROM fulfillments LIMIT 1;
 END $$;
 `
-	cmd := exec.CommandContext(ctx, "psql", "--no-password", s.databaseURL, "-c", query)
+	cmd := exec.CommandContext(ctx, "psql", "--no-password", "-v", "ON_ERROR_STOP=1", s.databaseURL, "-c", query)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

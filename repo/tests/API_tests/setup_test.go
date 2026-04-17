@@ -80,7 +80,7 @@ func buildRouter(dbURL string) *gin.Engine {
 	auditSvc := service.NewAuditService(auditRepo)
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
-	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, invSvc, auditSvc)
+	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
 	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
 

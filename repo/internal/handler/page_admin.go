@@ -208,7 +208,9 @@ func (h *PageAdminHandler) PostRestoreBackup(c *gin.Context) {
 	if backupID == "" {
 		backupID = c.PostForm("backup_id")
 	}
-	verifyIntegrity := c.PostForm("verify_integrity") != ""
+	// Fail-safe: integrity verification is on by default and only disabled
+	// when the operator explicitly opts out with verify_integrity=off.
+	verifyIntegrity := c.PostForm("verify_integrity") != "off"
 
 	if h.backupSvc != nil && backupID != "" {
 		if err := h.backupSvc.RestoreFromBackup(c.Request.Context(), backupID, verifyIntegrity); err != nil {

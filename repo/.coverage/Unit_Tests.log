@@ -1,11 +1,3 @@
-go: downloading github.com/google/uuid v1.6.0
-go: downloading github.com/jackc/pgx/v5 v5.7.2
-go: downloading golang.org/x/crypto v0.37.0
-go: downloading github.com/jackc/puddle/v2 v2.2.2
-go: downloading github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
-go: downloading github.com/jackc/pgpassfile v1.0.0
-go: downloading golang.org/x/text v0.24.0
-go: downloading golang.org/x/sync v0.13.0
 === RUN   TestWriteCSV
 --- PASS: TestWriteCSV (0.00s)
 === RUN   TestWriteCSVEmpty
@@ -81,5 +73,94 @@ go: downloading golang.org/x/sync v0.13.0
 === RUN   TestMaskVoucherCode
 --- PASS: TestMaskVoucherCode (0.00s)
 PASS
-coverage: 17.1% of statements in ./internal/domain/..., ./internal/util/..., ./internal/service/...
-ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.007s	coverage: 17.1% of statements in ./internal/domain/..., ./internal/util/..., ./internal/service/...
+coverage: 88.8% of statements in ./internal/domain/..., ./internal/util/...
+ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.004s	coverage: 88.8% of statements in ./internal/domain/..., ./internal/util/...
+=== RUN   TestAuditServiceLogIncludesContext
+--- PASS: TestAuditServiceLogIncludesContext (0.00s)
+=== RUN   TestUserServiceAndInventoryService
+--- PASS: TestUserServiceAndInventoryService (0.21s)
+=== RUN   TestExceptionAndMessagingServices
+--- PASS: TestExceptionAndMessagingServices (0.00s)
+=== RUN   TestBackupAndExportServices
+--- PASS: TestBackupAndExportServices (0.00s)
+=== RUN   TestPageRequestAndSLAHelpers
+--- PASS: TestPageRequestAndSLAHelpers (0.00s)
+=== RUN   TestValidateShippingAddress_AllBranches
+=== RUN   TestValidateShippingAddress_AllBranches/missing_line1
+=== RUN   TestValidateShippingAddress_AllBranches/missing_city
+=== RUN   TestValidateShippingAddress_AllBranches/bad_state
+=== RUN   TestValidateShippingAddress_AllBranches/bad_zip
+=== RUN   TestValidateShippingAddress_AllBranches/ok_5-digit
+=== RUN   TestValidateShippingAddress_AllBranches/ok_9-digit
+--- PASS: TestValidateShippingAddress_AllBranches (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/missing_line1 (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/missing_city (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/bad_state (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/bad_zip (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/ok_5-digit (0.00s)
+    --- PASS: TestValidateShippingAddress_AllBranches/ok_9-digit (0.00s)
+=== RUN   TestMessagingRetryPending
+--- PASS: TestMessagingRetryPending (0.00s)
+=== RUN   TestMessagingRetryPending_InAppFallbackSchedules
+--- PASS: TestMessagingRetryPending_InAppFallbackSchedules (0.00s)
+=== RUN   TestExportWriteCustomersCSV_Masked
+--- PASS: TestExportWriteCustomersCSV_Masked (0.00s)
+=== RUN   TestExportWriteAuditCSV
+--- PASS: TestExportWriteAuditCSV (0.00s)
+=== RUN   TestExportFailExport_UnknownReportType
+--- PASS: TestExportFailExport_UnknownReportType (0.00s)
+=== RUN   TestExportFailExport_OnReportGetError
+--- PASS: TestExportFailExport_OnReportGetError (0.00s)
+=== RUN   TestUserService_GetByIDAndList
+--- PASS: TestUserService_GetByIDAndList (0.00s)
+=== RUN   TestUserService_ValidationErrors
+--- PASS: TestUserService_ValidationErrors (0.00s)
+=== RUN   TestExceptionService_ValidationAndErrors
+--- PASS: TestExceptionService_ValidationAndErrors (0.00s)
+=== RUN   TestEncryptionService_DecryptErrors
+--- PASS: TestEncryptionService_DecryptErrors (0.00s)
+=== RUN   TestBackupService_RunBackupPgDumpMissing
+--- PASS: TestBackupService_RunBackupPgDumpMissing (0.00s)
+=== RUN   TestBackupService_RestoreCorruptFile
+--- PASS: TestBackupService_RestoreCorruptFile (0.00s)
+=== RUN   TestBackupService_ListAndRestore
+--- PASS: TestBackupService_ListAndRestore (0.00s)
+=== RUN   TestEncryptDecryptRoundTrip
+--- PASS: TestEncryptDecryptRoundTrip (0.00s)
+=== RUN   TestEncryptProducesUniqueCiphertexts
+--- PASS: TestEncryptProducesUniqueCiphertexts (0.00s)
+=== RUN   TestNewEncryptionServiceErrors
+=== RUN   TestNewEncryptionServiceErrors/nonexistent_file
+=== RUN   TestNewEncryptionServiceErrors/wrong_permissions
+=== RUN   TestNewEncryptionServiceErrors/too_short_key
+=== RUN   TestNewEncryptionServiceErrors/invalid_base64
+--- PASS: TestNewEncryptionServiceErrors (0.00s)
+    --- PASS: TestNewEncryptionServiceErrors/nonexistent_file (0.00s)
+    --- PASS: TestNewEncryptionServiceErrors/wrong_permissions (0.00s)
+    --- PASS: TestNewEncryptionServiceErrors/too_short_key (0.00s)
+    --- PASS: TestNewEncryptionServiceErrors/invalid_base64 (0.00s)
+=== RUN   TestFulfillmentAllTransitions
+--- PASS: TestFulfillmentAllTransitions (0.02s)
+=== RUN   TestTransitionTerminalReturnsError
+--- PASS: TestTransitionTerminalReturnsError (0.00s)
+=== RUN   TestTransitionShippedWithoutTracking
+--- PASS: TestTransitionShippedWithoutTracking (0.00s)
+=== RUN   TestInventoryDecrementedOnCreate
+--- PASS: TestInventoryDecrementedOnCreate (0.00s)
+=== RUN   TestInventoryRestoredOnCancel
+--- PASS: TestInventoryRestoredOnCancel (0.00s)
+=== RUN   TestPurchaseLimitEnforced
+--- PASS: TestPurchaseLimitEnforced (0.00s)
+=== RUN   TestCanceledNotCountedTowardLimit
+--- PASS: TestCanceledNotCountedTowardLimit (0.01s)
+=== RUN   TestCreateWhenInventoryZero
+--- PASS: TestCreateWhenInventoryZero (0.00s)
+=== RUN   TestStaleVersionConflict
+--- PASS: TestStaleVersionConflict (0.00s)
+=== RUN   TestSLAPhysical
+--- PASS: TestSLAPhysical (0.00s)
+=== RUN   TestSLAVoucher
+--- PASS: TestSLAVoucher (0.00s)
+PASS
+coverage: 65.2% of statements in ./internal/domain/..., ./internal/util/...
+ok  	github.com/fulfillops/fulfillops/internal/service	0.279s	coverage: 65.2% of statements in ./internal/domain/..., ./internal/util/...

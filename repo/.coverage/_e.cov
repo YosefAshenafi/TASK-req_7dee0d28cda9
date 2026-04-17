@@ -1,0 +1,21 @@
+mode: set
+github.com/fulfillops/fulfillops/internal/config/config.go:22.30,24.39 2 1
+github.com/fulfillops/fulfillops/internal/config/config.go:24.39,26.3 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:27.2,27.17 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:30.35,31.31 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:31.31,33.3 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:34.2,34.55 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:34.55,36.3 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:37.2,37.55 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:37.55,39.3 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:40.2,40.12 1 1
+github.com/fulfillops/fulfillops/internal/config/config.go:22.30,24.39 2 0
+github.com/fulfillops/fulfillops/internal/config/config.go:24.39,26.3 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:27.2,27.17 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:30.35,31.31 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:31.31,33.3 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:34.2,34.55 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:34.55,36.3 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:37.2,37.55 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:37.55,39.3 1 0
+github.com/fulfillops/fulfillops/internal/config/config.go:40.2,40.12 1 0

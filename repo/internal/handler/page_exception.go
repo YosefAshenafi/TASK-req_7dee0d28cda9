@@ -10,14 +10,16 @@ import (
 
 	"github.com/fulfillops/fulfillops/internal/domain"
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 	"github.com/fulfillops/fulfillops/internal/view"
 	eview "github.com/fulfillops/fulfillops/internal/view/exceptions"
 )
 
 type PageExceptionHandler struct {
-	store  sessions.Store
-	exRepo repository.ExceptionRepository
-	evRepo repository.ExceptionEventRepository
+	store        sessions.Store
+	exRepo       repository.ExceptionRepository
+	evRepo       repository.ExceptionEventRepository
+	exceptionSvc service.ExceptionService
 }
 
 func NewPageExceptionHandler(
@@ -26,6 +28,11 @@ func NewPageExceptionHandler(
 	evRepo repository.ExceptionEventRepository,
 ) *PageExceptionHandler {
 	return &PageExceptionHandler{store: store, exRepo: exRepo, evRepo: evRepo}
+}
+
+func (h *PageExceptionHandler) WithExceptionService(svc service.ExceptionService) *PageExceptionHandler {
+	h.exceptionSvc = svc
+	return h
 }
 
 func (h *PageExceptionHandler) List(c *gin.Context) {
@@ -94,10 +101,20 @@ func (h *PageExceptionHandler) ShowDetail(c *gin.Context) {
 		evItems[i] = eview.ExceptionEvent{ExceptionEvent: ev}
 	}
 
+	openedByName := ""
+	if ex.OpenedBy != nil {
+		s := ex.OpenedBy.String()
+		if len(s) >= 8 {
+			openedByName = s[:8]
+		} else {
+			openedByName = s
+		}
+	}
+
 	renderPage(c, http.StatusOK, eview.Detail(pageCtx(c, h.store), eview.DetailData{
 		Exception:    *ex,
 		Events:       evItems,
-		OpenedByName: ex.OpenedBy.String()[:8],
+		OpenedByName: openedByName,
 		CanUpdate:    canEdit(c, h.store),
 	}))
 }
@@ -107,15 +124,25 @@ func (h *PageExceptionHandler) PostUpdateStatus(c *gin.Context) {
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	userID, _ := uuid.Parse(sess.Values["userID"].(string))
+	ctx = service.WithUserID(ctx, userID)
 
 	status := domain.ExceptionStatus(c.PostForm("status"))
-	var note *string
-	if n := c.PostForm("resolution_note"); n != "" {
-		note = &n
-	}
-	if err := h.exRepo.UpdateStatus(ctx, id, status, note, &userID); err != nil {
-		redirectWithFlash(c, h.store, "/exceptions/"+id.String(), "error", err.Error())
-		return
+	note := c.PostForm("resolution_note")
+
+	if h.exceptionSvc != nil {
+		if _, err := h.exceptionSvc.UpdateStatus(ctx, id, status, note); err != nil {
+			redirectWithFlash(c, h.store, "/exceptions/"+id.String(), "error", err.Error())
+			return
+		}
+	} else {
+		var notePtr *string
+		if note != "" {
+			notePtr = &note
+		}
+		if err := h.exRepo.UpdateStatus(ctx, id, status, notePtr, &userID); err != nil {
+			redirectWithFlash(c, h.store, "/exceptions/"+id.String(), "error", err.Error())
+			return
+		}
 	}
 	redirectWithFlash(c, h.store, "/exceptions/"+id.String(), "success", "Status updated.")
 }

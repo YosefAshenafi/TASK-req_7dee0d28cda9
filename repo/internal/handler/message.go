@@ -275,7 +275,9 @@ func (h *MessageHandler) Dispatch(c *gin.Context) {
 		req.Context = map[string]any{}
 	}
 
-	log, err := h.messagingSvc.Dispatch(c.Request.Context(), req.TemplateID, req.RecipientID, req.Context)
+	actorRaw, _ := c.Get("userID")
+	callerID, _ := actorRaw.(uuid.UUID)
+	log, err := h.messagingSvc.Dispatch(c.Request.Context(), req.TemplateID, callerID, req.RecipientID, req.Context)
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return

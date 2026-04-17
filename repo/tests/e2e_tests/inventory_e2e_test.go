@@ -12,7 +12,7 @@ import (
 
 func TestConcurrentInventory_ExactlyOneSucceeds(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-concurrent-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-concurrent-%d", time.Now().UnixNano()),
 		"inventory_count": 1, "purchase_limit": 5, "alert_threshold": 0,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -64,7 +64,7 @@ func TestConcurrentInventory_ExactlyOneSucceeds(t *testing.T) {
 
 func TestPurchaseLimitEnforced(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-limit-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-limit-%d", time.Now().UnixNano()),
 		"inventory_count": 10, "purchase_limit": 2, "alert_threshold": 0,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -93,7 +93,7 @@ func TestPurchaseLimitEnforced(t *testing.T) {
 
 func TestCanceledFulfillmentsDoNotCountTowardLimit(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-cancel-limit-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-cancel-limit-%d", time.Now().UnixNano()),
 		"inventory_count": 10, "purchase_limit": 2, "alert_threshold": 0,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -111,10 +111,8 @@ func TestCanceledFulfillmentsDoNotCountTowardLimit(t *testing.T) {
 		mustStatus(t, rr, http.StatusCreated)
 		ffID := decode(t, rr)["id"].(string)
 
-		do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-			map[string]any{"to_status": "READY_TO_SHIP"})
-		do(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition",
-			map[string]any{"to_status": "CANCELED", "reason": "cancel for test"})
+		_ = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
+		_ = transition(t, ffID, map[string]any{"to_status": "CANCELED", "reason": "cancel for test"})
 	}
 
 	// A third creation should succeed since canceled ones don't count.
@@ -128,7 +126,7 @@ func TestCanceledFulfillmentsDoNotCountTowardLimit(t *testing.T) {
 
 func TestVersionConflict_Tier(t *testing.T) {
 	rr := do(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("e2e-version-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("e2e-version-%d", time.Now().UnixNano()),
 		"inventory_count": 5, "purchase_limit": 2, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)

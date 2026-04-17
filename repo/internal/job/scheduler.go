@@ -18,6 +18,10 @@ type jobEntry struct {
 	name     string
 	interval time.Duration
 	fn       JobFunc
+	// daily scheduling
+	daily  bool
+	hour   int
+	minute int
 }
 
 // Scheduler runs registered jobs at fixed intervals and records run history.
@@ -39,6 +43,13 @@ func (s *Scheduler) Register(name string, interval time.Duration, fn JobFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.jobs = append(s.jobs, jobEntry{name: name, interval: interval, fn: fn})
+}
+
+// RegisterDaily adds a job to be run once per day at the given UTC wall-clock time.
+func (s *Scheduler) RegisterDaily(name string, hour, minute int, fn JobFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.jobs = append(s.jobs, jobEntry{name: name, fn: fn, daily: true, hour: hour, minute: minute})
 }
 
 // Start launches all registered jobs as goroutines.
@@ -72,6 +83,10 @@ func (s *Scheduler) Stop() {
 }
 
 func (s *Scheduler) runLoop(ctx context.Context, j jobEntry) {
+	if j.daily {
+		s.runDailyLoop(ctx, j)
+		return
+	}
 	ticker := time.NewTicker(j.interval)
 	defer ticker.Stop()
 	for {
@@ -79,6 +94,22 @@ func (s *Scheduler) runLoop(ctx context.Context, j jobEntry) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			s.runOnce(ctx, j)
+		}
+	}
+}
+
+func (s *Scheduler) runDailyLoop(ctx context.Context, j jobEntry) {
+	for {
+		now := time.Now().UTC()
+		next := time.Date(now.Year(), now.Month(), now.Day(), j.hour, j.minute, 0, 0, time.UTC)
+		if !next.After(now) {
+			next = next.Add(24 * time.Hour)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(next.Sub(now)):
 			s.runOnce(ctx, j)
 		}
 	}

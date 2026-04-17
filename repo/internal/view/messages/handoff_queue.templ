@@ -40,7 +40,7 @@ templ HandoffQueue(pctx view.PageCtx, d HandoffData) {
 								<td>@components.SendLogStatusBadge(item.Status)</td>
 								<td class="text-sm text-muted">{ item.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
 								<td>
-									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/print") }>
+									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/printed") }>
 										<button type="submit" class="btn btn-xs btn-primary">Mark as Printed</button>
 									</form>
 								</td>

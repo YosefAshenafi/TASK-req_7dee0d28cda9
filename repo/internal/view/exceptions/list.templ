@@ -31,14 +31,14 @@ templ List(pctx view.PageCtx, d ListData) {
 						<option value="">All Statuses</option>
 						<option value="OPEN" selected?={ d.StatusFilter == "OPEN" }>Open</option>
 						<option value="INVESTIGATING" selected?={ d.StatusFilter == "INVESTIGATING" }>Investigating</option>
+						<option value="ESCALATED" selected?={ d.StatusFilter == "ESCALATED" }>Escalated</option>
 						<option value="RESOLVED" selected?={ d.StatusFilter == "RESOLVED" }>Resolved</option>
-						<option value="CLOSED" selected?={ d.StatusFilter == "CLOSED" }>Closed</option>
 					</select>
 					<select name="type" class="form-control">
 						<option value="">All Types</option>
 						<option value="OVERDUE_SHIPMENT" selected?={ d.TypeFilter == "OVERDUE_SHIPMENT" }>Overdue Shipment</option>
-						<option value="DAMAGED_ITEM" selected?={ d.TypeFilter == "DAMAGED_ITEM" }>Damaged Item</option>
-						<option value="CUSTOMER_COMPLAINT" selected?={ d.TypeFilter == "CUSTOMER_COMPLAINT" }>Customer Complaint</option>
+						<option value="OVERDUE_VOUCHER" selected?={ d.TypeFilter == "OVERDUE_VOUCHER" }>Overdue Voucher</option>
+						<option value="MANUAL" selected?={ d.TypeFilter == "MANUAL" }>Manual</option>
 					</select>
 					<input name="fulfillment_id" type="text" class="form-control" placeholder="Fulfillment ID…" value={ d.FulfillmentQ }/>
 					<input name="date_from" type="date" class="form-control" value={ d.DateFrom }/>

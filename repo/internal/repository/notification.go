@@ -14,6 +14,9 @@ import (
 
 type NotificationRepository interface {
 	Create(ctx context.Context, n *domain.Notification) (*domain.Notification, error)
+	// CreateTx inserts a notification inside a caller-owned transaction so the
+	// write participates in the same atomic bundle as its triggering action.
+	CreateTx(ctx context.Context, tx pgx.Tx, n *domain.Notification) error
 	ListByUserID(ctx context.Context, userID uuid.UUID, isRead *bool, page domain.PageRequest) ([]domain.Notification, int, error)
 	MarkRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
@@ -36,6 +39,19 @@ func (r *pgNotificationRepo) Create(ctx context.Context, n *domain.Notification)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 		n.ID, n.UserID, n.Title, n.Body, n.IsRead, n.Context, n.CreatedAt)
 	return n, err
+}
+
+func (r *pgNotificationRepo) CreateTx(ctx context.Context, tx pgx.Tx, n *domain.Notification) error {
+	n.ID = uuid.New()
+	n.CreatedAt = time.Now().UTC()
+	if n.Context == nil {
+		n.Context = []byte(`{}`)
+	}
+	_, err := tx.Exec(ctx,
+		`INSERT INTO notifications (id, user_id, title, body, is_read, context, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		n.ID, n.UserID, n.Title, n.Body, n.IsRead, n.Context, n.CreatedAt)
+	return err
 }
 
 func (r *pgNotificationRepo) ListByUserID(ctx context.Context, userID uuid.UUID, isRead *bool, page domain.PageRequest) ([]domain.Notification, int, error) {

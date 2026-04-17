@@ -14,12 +14,12 @@ import (
 // MessagingService dispatches messages via various channels.
 type MessagingService interface {
 	// Dispatch sends a message via the template's configured channel.
-	// IN_APP: creates a Notification + SENT send_log.
-	// SMS/EMAIL: creates a QUEUED send_log (delivered by external system or print queue).
-	Dispatch(ctx context.Context, templateID uuid.UUID, recipientID uuid.UUID, contextData map[string]any) (*domain.SendLog, error)
+	// userID is the system user for IN_APP notifications (FK to users.id).
+	// recipientID is the logical recipient for SMS/EMAIL send_log tracking (no FK).
+	Dispatch(ctx context.Context, templateID uuid.UUID, userID uuid.UUID, recipientID uuid.UUID, contextData map[string]any) (*domain.SendLog, error)
 	// MarkPrinted marks an SMS/EMAIL send_log as PRINTED (handoff queue).
 	MarkPrinted(ctx context.Context, id uuid.UUID) error
-	// RetryPending re-queues QUEUED in-app send_logs (up to maxAttempts).
+	// RetryPending re-queues failed send_logs (up to maxAttempts).
 	RetryPending(ctx context.Context, maxAttempts int) (int, error)
 }
 
@@ -42,7 +42,7 @@ func NewMessagingService(
 	}
 }
 
-func (s *messagingService) Dispatch(ctx context.Context, templateID uuid.UUID, recipientID uuid.UUID, contextData map[string]any) (*domain.SendLog, error) {
+func (s *messagingService) Dispatch(ctx context.Context, templateID uuid.UUID, userID uuid.UUID, recipientID uuid.UUID, contextData map[string]any) (*domain.SendLog, error) {
 	tmpl, err := s.templateRepo.GetByID(ctx, templateID)
 	if err != nil {
 		return nil, err
@@ -63,10 +63,10 @@ func (s *messagingService) Dispatch(ctx context.Context, templateID uuid.UUID, r
 
 	switch tmpl.Channel {
 	case domain.ChannelInApp:
-		// Create in-app notification immediately.
+		// Create in-app notification using userID (FK to users.id).
 		body := tmpl.BodyTemplate
 		notification := &domain.Notification{
-			UserID:  recipientID,
+			UserID:  userID,
 			Title:   tmpl.Name,
 			Body:    &body,
 			Context: ctxJSON,
@@ -78,7 +78,7 @@ func (s *messagingService) Dispatch(ctx context.Context, templateID uuid.UUID, r
 
 	case domain.ChannelSMS, domain.ChannelEmail:
 		// Queued for handoff / external delivery.
-		retryAt := time.Now().UTC().Add(5 * time.Minute)
+		retryAt := time.Now().UTC().Add(10 * time.Minute)
 		log.NextRetryAt = &retryAt
 	}
 
@@ -106,30 +106,38 @@ func (s *messagingService) RetryPending(ctx context.Context, maxAttempts int) (i
 			continue
 		}
 
-		// For IN_APP, attempt delivery.
-		if l.Channel == domain.ChannelInApp && l.TemplateID != nil {
-			tmpl, err := s.templateRepo.GetByID(ctx, *l.TemplateID)
-			if err == nil {
-				retryBody := tmpl.BodyTemplate
-				notification := &domain.Notification{
-					UserID:  l.RecipientID,
-					Title:   tmpl.Name,
-					Body:    &retryBody,
-					Context: l.Context,
-				}
-				if _, err := s.notificationRepo.Create(ctx, notification); err == nil {
-					_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendSent, nil)
-					retried++
-					continue
+		switch l.Channel {
+		case domain.ChannelInApp:
+			if l.TemplateID != nil {
+				tmpl, err := s.templateRepo.GetByID(ctx, *l.TemplateID)
+				if err == nil {
+					retryBody := tmpl.BodyTemplate
+					notification := &domain.Notification{
+						UserID:  l.RecipientID,
+						Title:   tmpl.Name,
+						Body:    &retryBody,
+						Context: l.Context,
+					}
+					if _, err := s.notificationRepo.Create(ctx, notification); err == nil {
+						_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendSent, nil)
+						retried++
+						continue
+					}
 				}
 			}
-		}
+			// Reschedule with fixed 10-min interval.
+			next := now.Add(10 * time.Minute)
+			_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendQueued, nil)
+			_ = s.sendLogRepo.UpdateNextRetry(ctx, l.ID, next)
+			retried++
 
-		// Schedule next retry with backoff.
-		next := now.Add(time.Duration(l.AttemptCount+1) * 5 * time.Minute)
-		_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendQueued, nil)
-		_ = s.sendLogRepo.UpdateNextRetry(ctx, l.ID, next)
-		retried++
+		case domain.ChannelSMS, domain.ChannelEmail:
+			// Re-queue for handoff with fixed 10-min interval.
+			next := now.Add(10 * time.Minute)
+			_ = s.sendLogRepo.UpdateStatus(ctx, l.ID, domain.SendQueued, nil)
+			_ = s.sendLogRepo.UpdateNextRetry(ctx, l.ID, next)
+			retried++
+		}
 	}
 	return retried, nil
 }

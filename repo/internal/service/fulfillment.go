@@ -13,7 +13,36 @@ import (
 	"github.com/fulfillops/fulfillops/internal/repository"
 )
 
-var trackingNumberRegex = regexp.MustCompile(`^[A-Za-z0-9]{8,30}$`)
+var (
+	trackingNumberRegex = regexp.MustCompile(`^[A-Za-z0-9]{8,30}$`)
+	usStateRegex        = regexp.MustCompile(`^[A-Z]{2}$`)
+	usZipRegex          = regexp.MustCompile(`^\d{5}(-\d{4})?$`)
+)
+
+// validateShippingAddress enforces US state (2 letters) and ZIP (5 or 9 digit) formats.
+func validateShippingAddress(a *ShippingAddressEncrypted) error {
+	if len(a.Line1Encrypted) == 0 {
+		return domain.NewValidationError("missing required field", map[string]string{
+			"addr_line1": "required",
+		})
+	}
+	if a.City == "" {
+		return domain.NewValidationError("missing required field", map[string]string{
+			"addr_city": "required",
+		})
+	}
+	if !usStateRegex.MatchString(a.State) {
+		return domain.NewValidationError("invalid field", map[string]string{
+			"addr_state": "must be a 2-letter US state code",
+		})
+	}
+	if !usZipRegex.MatchString(a.ZipCode) {
+		return domain.NewValidationError("invalid field", map[string]string{
+			"addr_zip": "must be a 5-digit or 9-digit (zip+4) US ZIP code",
+		})
+	}
+	return nil
+}
 
 // CreateFulfillmentInput holds all data needed to create a fulfillment.
 type CreateFulfillmentInput struct {
@@ -26,6 +55,9 @@ type CreateFulfillmentInput struct {
 type TransitionInput struct {
 	FulfillmentID uuid.UUID
 	ToStatus      domain.FulfillmentStatus
+	// ExpectedVersion enforces optimistic locking. If non-zero, the current
+	// row version must match or ErrConflict is returned.
+	ExpectedVersion int
 	// SHIPPED
 	CarrierName    *string
 	TrackingNumber *string
@@ -34,6 +66,17 @@ type TransitionInput struct {
 	VoucherExpiration *time.Time
 	// ON_HOLD / CANCELED
 	Reason *string
+	// Optional shipping address for PHYSICAL → READY_TO_SHIP. Pre-encrypted by handler.
+	ShippingAddr *ShippingAddressEncrypted
+}
+
+// ShippingAddressEncrypted holds pre-encrypted address bytes plus plaintext metadata.
+type ShippingAddressEncrypted struct {
+	Line1Encrypted []byte
+	Line2Encrypted []byte
+	City           string
+	State          string
+	ZipCode        string
 }
 
 // ShippingAddressInput is the decrypted form used at the service boundary.
@@ -56,16 +99,23 @@ type fulfillmentService struct {
 	fulfillRepo  repository.FulfillmentRepository
 	tierRepo     repository.TierRepository
 	timelineRepo repository.TimelineRepository
+	shippingRepo repository.ShippingAddressRepository
+	notifRepo    repository.NotificationRepository
 	inventorySvc InventoryService
 	auditSvc     AuditService
 }
 
-// NewFulfillmentService wires all dependencies.
+// NewFulfillmentService wires all dependencies. shippingRepo and notifRepo are
+// optional (pass nil to disable transactional shipping-address / notification
+// enqueue). Including them enforces the atomic-bundle requirement that every
+// transition write is committed-or-rolled-back together.
 func NewFulfillmentService(
 	txMgr repository.TxManager,
 	fulfillRepo repository.FulfillmentRepository,
 	tierRepo repository.TierRepository,
 	timelineRepo repository.TimelineRepository,
+	shippingRepo repository.ShippingAddressRepository,
+	notifRepo repository.NotificationRepository,
 	inventorySvc InventoryService,
 	auditSvc AuditService,
 ) FulfillmentService {
@@ -74,6 +124,8 @@ func NewFulfillmentService(
 		fulfillRepo:  fulfillRepo,
 		tierRepo:     tierRepo,
 		timelineRepo: timelineRepo,
+		shippingRepo: shippingRepo,
+		notifRepo:    notifRepo,
 		inventorySvc: inventorySvc,
 		auditSvc:     auditSvc,
 	}
@@ -169,9 +221,36 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 			return err
 		}
 
+		// 1a. Optimistic locking: caller-supplied version must match current row.
+		if input.ExpectedVersion != 0 && input.ExpectedVersion != f.Version {
+			return domain.NewConflictError()
+		}
+
 		// 2. Validate transition.
 		if !domain.IsTransitionAllowed(f.Status, input.ToStatus) {
 			return domain.NewTransitionError(f.Status, input.ToStatus)
+		}
+
+		// 2a. Type-specific transition guard.
+		switch input.ToStatus {
+		case domain.StatusShipped:
+			if f.Type != domain.TypePhysical {
+				return domain.NewValidationError("invalid transition", map[string]string{
+					"to_status": "SHIPPED is only valid for PHYSICAL fulfillments",
+				})
+			}
+		case domain.StatusVoucherIssued:
+			if f.Type != domain.TypeVoucher {
+				return domain.NewValidationError("invalid transition", map[string]string{
+					"to_status": "VOUCHER_ISSUED is only valid for VOUCHER fulfillments",
+				})
+			}
+		case domain.StatusDelivered:
+			if f.Type != domain.TypePhysical {
+				return domain.NewValidationError("invalid transition", map[string]string{
+					"to_status": "DELIVERED is only valid for PHYSICAL fulfillments",
+				})
+			}
 		}
 
 		fromStatus := f.Status
@@ -182,6 +261,23 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 		switch input.ToStatus {
 		case domain.StatusReadyToShip:
 			f.ReadyAt = &now
+			// Physical fulfillments require a shipping address at READY_TO_SHIP.
+			if f.Type == domain.TypePhysical && input.ShippingAddr != nil && s.shippingRepo != nil {
+				if err := validateShippingAddress(input.ShippingAddr); err != nil {
+					return err
+				}
+				addr := &domain.ShippingAddress{
+					FulfillmentID:  f.ID,
+					Line1Encrypted: input.ShippingAddr.Line1Encrypted,
+					Line2Encrypted: input.ShippingAddr.Line2Encrypted,
+					City:           input.ShippingAddr.City,
+					State:          input.ShippingAddr.State,
+					ZipCode:        input.ShippingAddr.ZipCode,
+				}
+				if _, err := s.shippingRepo.Create(ctx, tx, addr); err != nil {
+					return fmt.Errorf("persisting shipping address: %w", err)
+				}
+			}
 
 		case domain.StatusShipped:
 			if f.Type == domain.TypePhysical {
@@ -256,6 +352,20 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 			ChangedBy:     &actorID,
 		}); err != nil {
 			return fmt.Errorf("creating timeline event: %w", err)
+		}
+
+		// 6. Atomically enqueue a status-change notification for the actor.
+		// Part of the atomic bundle — rolls back with the transition on failure.
+		if s.notifRepo != nil && actorID != (uuid.UUID{}) {
+			body := fmt.Sprintf("Fulfillment %s transitioned to %s", f.ID.String()[:8], input.ToStatus)
+			notif := &domain.Notification{
+				UserID: actorID,
+				Title:  "Fulfillment status update",
+				Body:   &body,
+			}
+			if err := s.notifRepo.CreateTx(ctx, tx, notif); err != nil {
+				return fmt.Errorf("enqueuing transition notification: %w", err)
+			}
 		}
 
 		return nil

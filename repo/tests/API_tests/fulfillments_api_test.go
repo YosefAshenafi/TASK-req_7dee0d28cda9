@@ -3,6 +3,7 @@ package api_tests
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -12,7 +13,7 @@ import (
 func apiCreateTier(t *testing.T) string {
 	t.Helper()
 	rr := admin(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("ff-tier-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("ff-tier-%d", time.Now().UnixNano()),
 		"inventory_count": 10, "purchase_limit": 5, "alert_threshold": 1,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -35,6 +36,18 @@ func apiCreateFulfillment(t *testing.T, tierID, custID, ffType string) map[strin
 	})
 	mustStatus(t, rr, http.StatusCreated)
 	return decodeJSON(t, rr)
+}
+
+func apiTransition(t *testing.T, ffID string, payload map[string]any) *httptest.ResponseRecorder {
+	t.Helper()
+	rr := admin(http.MethodGet, "/api/v1/fulfillments/"+ffID, nil)
+	mustStatus(t, rr, http.StatusOK)
+	version := int(decodeJSON(t, rr)["version"].(float64))
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	payload["version"] = version
+	return admin(http.MethodPost, "/api/v1/fulfillments/"+ffID+"/transition", payload)
 }
 
 // tests ---------------------------------------------------------------------
@@ -68,7 +81,7 @@ func TestFulfillmentsCreate_MissingTierID(t *testing.T) {
 
 func TestFulfillmentsCreate_InventoryUnavailable(t *testing.T) {
 	rr := admin(http.MethodPost, "/api/v1/tiers", map[string]any{
-		"name": fmt.Sprintf("zero-inv-%d", time.Now().UnixNano()),
+		"name":            fmt.Sprintf("zero-inv-%d", time.Now().UnixNano()),
 		"inventory_count": 0, "purchase_limit": 5, "alert_threshold": 0,
 	})
 	mustStatus(t, rr, http.StatusCreated)
@@ -111,8 +124,7 @@ func TestFulfillmentsTransition_DraftToReadyToShip(t *testing.T) {
 	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
 	id := ff["id"].(string)
 
-	rr := admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
 	mustStatus(t, rr, http.StatusOK)
 	body := decodeJSON(t, rr)
 	if body["status"] != "READY_TO_SHIP" {
@@ -127,13 +139,11 @@ func TestFulfillmentsTransition_ShippedRequiresTracking(t *testing.T) {
 	id := ff["id"].(string)
 
 	// advance to READY_TO_SHIP
-	rr := admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
 	mustStatus(t, rr, http.StatusOK)
 
 	// try SHIPPED without tracking → should fail
-	rr = admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "SHIPPED", "carrier_name": "FedEx"})
+	rr = apiTransition(t, id, map[string]any{"to_status": "SHIPPED", "carrier_name": "FedEx"})
 	if rr.Code == http.StatusOK {
 		t.Fatal("expected error when shipping without tracking number")
 	}
@@ -146,11 +156,43 @@ func TestFulfillmentsTransition_InvalidTransition(t *testing.T) {
 	id := ff["id"].(string)
 
 	// DRAFT → COMPLETED is not allowed
-	rr := admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "COMPLETED"})
+	rr := apiTransition(t, id, map[string]any{"to_status": "COMPLETED"})
 	if rr.Code == http.StatusOK {
 		t.Fatal("expected error for invalid DRAFT→COMPLETED transition")
 	}
+}
+
+func TestFulfillmentsTransition_VoucherCannotShip(t *testing.T) {
+	tierID := apiCreateTier(t)
+	custID := apiCreateCustomer(t)
+	ff := apiCreateFulfillment(t, tierID, custID, "VOUCHER")
+	id := ff["id"].(string)
+
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	mustStatus(t, rr, http.StatusOK)
+
+	rr = apiTransition(t, id, map[string]any{
+		"to_status":       "SHIPPED",
+		"carrier_name":    "FedEx",
+		"tracking_number": "1Z999AA10123456784",
+	})
+	mustStatus(t, rr, http.StatusUnprocessableEntity)
+}
+
+func TestFulfillmentsTransition_PhysicalCannotIssueVoucher(t *testing.T) {
+	tierID := apiCreateTier(t)
+	custID := apiCreateCustomer(t)
+	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
+	id := ff["id"].(string)
+
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	mustStatus(t, rr, http.StatusOK)
+
+	rr = apiTransition(t, id, map[string]any{
+		"to_status":    "VOUCHER_ISSUED",
+		"voucher_code": "TESTCODE123",
+	})
+	mustStatus(t, rr, http.StatusUnprocessableEntity)
 }
 
 func TestFulfillmentsTransition_Cancel(t *testing.T) {
@@ -159,12 +201,10 @@ func TestFulfillmentsTransition_Cancel(t *testing.T) {
 	ff := apiCreateFulfillment(t, tierID, custID, "VOUCHER")
 	id := ff["id"].(string)
 
-	rr := admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
 	mustStatus(t, rr, http.StatusOK)
 
-	rr = admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "CANCELED", "reason": "test cancel"})
+	rr = apiTransition(t, id, map[string]any{"to_status": "CANCELED", "reason": "test cancel"})
 	mustStatus(t, rr, http.StatusOK)
 	body := decodeJSON(t, rr)
 	if body["status"] != "CANCELED" {
@@ -179,8 +219,7 @@ func TestFulfillmentsTimeline(t *testing.T) {
 	id := ff["id"].(string)
 
 	// Make a transition to generate timeline entries.
-	admin(http.MethodPost, "/api/v1/fulfillments/"+id+"/transition",
-		map[string]any{"to_status": "READY_TO_SHIP"})
+	_ = apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
 
 	rr := admin(http.MethodGet, "/api/v1/fulfillments/"+id+"/timeline", nil)
 	mustStatus(t, rr, http.StatusOK)

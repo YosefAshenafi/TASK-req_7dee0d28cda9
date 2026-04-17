@@ -138,7 +138,7 @@ func (r *pgSendLogRepo) GetRetryable(ctx context.Context, now time.Time) ([]doma
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+sendLogCols+`
 		 FROM send_logs
-		 WHERE status='QUEUED' AND channel='IN_APP' AND next_retry_at <= $1`,
+		 WHERE status='FAILED' AND next_retry_at <= $1`,
 		now)
 	if err != nil {
 		return nil, err

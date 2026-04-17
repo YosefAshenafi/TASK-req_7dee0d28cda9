@@ -32,16 +32,16 @@ templ TemplateList(pctx view.PageCtx, d TemplateListData) {
 				<form method="GET" action="/messages" class="filters-bar">
 					<select name="category" class="form-control">
 						<option value="">All Categories</option>
-						<option value="booking_result" selected?={ d.CategoryFilter == "booking_result" }>Booking Result</option>
-						<option value="booking_change" selected?={ d.CategoryFilter == "booking_change" }>Booking Change</option>
-						<option value="expiration" selected?={ d.CategoryFilter == "expiration" }>Expiration</option>
-						<option value="fulfillment_progress" selected?={ d.CategoryFilter == "fulfillment_progress" }>Fulfillment Progress</option>
+						<option value="BOOKING_RESULT" selected?={ d.CategoryFilter == "BOOKING_RESULT" }>Booking Result</option>
+						<option value="BOOKING_CHANGE" selected?={ d.CategoryFilter == "BOOKING_CHANGE" }>Booking Change</option>
+						<option value="EXPIRATION" selected?={ d.CategoryFilter == "EXPIRATION" }>Expiration</option>
+						<option value="FULFILLMENT_PROGRESS" selected?={ d.CategoryFilter == "FULFILLMENT_PROGRESS" }>Fulfillment Progress</option>
 					</select>
 					<select name="channel" class="form-control">
 						<option value="">All Channels</option>
-						<option value="in_app" selected?={ d.ChannelFilter == "in_app" }>In-App</option>
-						<option value="sms" selected?={ d.ChannelFilter == "sms" }>SMS</option>
-						<option value="email" selected?={ d.ChannelFilter == "email" }>Email</option>
+						<option value="IN_APP" selected?={ d.ChannelFilter == "IN_APP" }>In-App</option>
+						<option value="SMS" selected?={ d.ChannelFilter == "SMS" }>SMS</option>
+						<option value="EMAIL" selected?={ d.ChannelFilter == "EMAIL" }>Email</option>
 					</select>
 					<button type="submit" class="btn btn-secondary">Filter</button>
 				</form>

@@ -100,7 +100,10 @@ func (h *PageMessageHandler) PostDeleteTemplate(c *gin.Context) {
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
-	_ = h.templateRepo.SoftDelete(ctx, id, deletedBy)
+	if err := h.templateRepo.SoftDelete(ctx, id, deletedBy); err != nil {
+		redirectWithFlash(c, h.store, "/messages", "error", "Delete failed: "+err.Error())
+		return
+	}
 	redirectWithFlash(c, h.store, "/messages", "success", "Template deleted.")
 }
 
@@ -122,6 +125,11 @@ func (h *PageMessageHandler) ShowSendLogs(c *gin.Context) {
 	}
 	if s := c.Query("status"); s != "" {
 		filters.Status = domain.SendLogStatus(s)
+	}
+	if r := c.Query("recipient"); r != "" {
+		if rid, err := uuid.Parse(r); err == nil {
+			filters.RecipientID = &rid
+		}
 	}
 	if df := c.Query("date_from"); df != "" {
 		if t, err := time.Parse("2006-01-02", df); err == nil {
@@ -168,7 +176,10 @@ func (h *PageMessageHandler) PostMarkPrinted(c *gin.Context) {
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	userID, _ := uuid.Parse(sess.Values["userID"].(string))
-	_ = h.sendLogRepo.MarkPrinted(ctx, id, userID)
+	if err := h.sendLogRepo.MarkPrinted(ctx, id, userID); err != nil {
+		redirectWithFlash(c, h.store, "/messages/handoff", "error", "Mark printed failed: "+err.Error())
+		return
+	}
 	redirectWithFlash(c, h.store, "/messages/handoff", "success", "Marked as printed.")
 }
 

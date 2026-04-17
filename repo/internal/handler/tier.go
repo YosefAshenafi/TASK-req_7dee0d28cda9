@@ -39,6 +39,22 @@ type updateTierRequest struct {
 	Version        int     `json:"version" binding:"required"`
 }
 
+// normalizePurchaseLimit applies the default (2 per 30 days) when unset.
+func normalizePurchaseLimit(v int) int {
+	if v <= 0 {
+		return 2
+	}
+	return v
+}
+
+// normalizeAlertThreshold applies a sensible default when unset.
+func normalizeAlertThreshold(v int) int {
+	if v < 0 {
+		return 10
+	}
+	return v
+}
+
 // GET /api/v1/tiers
 func (h *TierHandler) List(c *gin.Context) {
 	name := c.DefaultQuery("name", "")
@@ -65,8 +81,8 @@ func (h *TierHandler) Create(c *gin.Context) {
 		Name:           req.Name,
 		Description:    req.Description,
 		InventoryCount: req.InventoryCount,
-		PurchaseLimit:  req.PurchaseLimit,
-		AlertThreshold: req.AlertThreshold,
+		PurchaseLimit:  normalizePurchaseLimit(req.PurchaseLimit),
+		AlertThreshold: normalizeAlertThreshold(req.AlertThreshold),
 	}
 
 	created, err := h.tierRepo.Create(c.Request.Context(), tier)
@@ -118,8 +134,8 @@ func (h *TierHandler) Update(c *gin.Context) {
 		Name:           req.Name,
 		Description:    req.Description,
 		InventoryCount: req.InventoryCount,
-		PurchaseLimit:  req.PurchaseLimit,
-		AlertThreshold: req.AlertThreshold,
+		PurchaseLimit:  normalizePurchaseLimit(req.PurchaseLimit),
+		AlertThreshold: normalizeAlertThreshold(req.AlertThreshold),
 		Version:        req.Version,
 	}
 

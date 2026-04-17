@@ -45,6 +45,20 @@ func (h *ReportHandler) List(c *gin.Context) {
 		return
 	}
 
+	// Non-admins cannot see sensitive exports in the list.
+	roleRaw, _ := c.Get("userRole")
+	role, _ := roleRaw.(domain.UserRole)
+	if role != domain.RoleAdministrator {
+		filtered := make([]domain.ReportExport, 0, len(exports))
+		for _, e := range exports {
+			if !e.IncludeSensitive {
+				filtered = append(filtered, e)
+			}
+		}
+		exports = filtered
+		total = len(filtered)
+	}
+
 	c.JSON(http.StatusOK, domain.PageResponse[domain.ReportExport]{
 		Items:    exports,
 		Total:    total,
@@ -71,6 +85,18 @@ func (h *ReportHandler) Create(c *gin.Context) {
 
 	actorRaw, _ := c.Get("userID")
 	actorID, _ := actorRaw.(uuid.UUID)
+
+	if req.IncludeSensitive {
+		roleRaw, _ := c.Get("userRole")
+		role, _ := roleRaw.(domain.UserRole)
+		if role != domain.RoleAdministrator {
+			c.JSON(http.StatusForbidden, middleware.ErrorResponse{
+				Code:    "FORBIDDEN",
+				Message: "include_sensitive requires Administrator role",
+			})
+			return
+		}
+	}
 
 	export := &domain.ReportExport{
 		ReportType:       req.ReportType,
@@ -114,6 +140,17 @@ func (h *ReportHandler) Get(c *gin.Context) {
 		return
 	}
 
+	// Per-record authorization: non-admins cannot access sensitive exports.
+	roleRaw, _ := c.Get("userRole")
+	role, _ := roleRaw.(domain.UserRole)
+	if export.IncludeSensitive && role != domain.RoleAdministrator {
+		c.JSON(http.StatusForbidden, middleware.ErrorResponse{
+			Code:    "FORBIDDEN",
+			Message: "sensitive export access requires Administrator role",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, export)
 }
 
@@ -122,6 +159,22 @@ func (h *ReportHandler) VerifyChecksum(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: "invalid export ID"})
+		return
+	}
+
+	export, err := h.reportRepo.GetByID(c.Request.Context(), id)
+	if err != nil {
+		middleware.DomainErrorToHTTP(c, err)
+		return
+	}
+
+	roleRaw, _ := c.Get("userRole")
+	role, _ := roleRaw.(domain.UserRole)
+	if export.IncludeSensitive && role != domain.RoleAdministrator {
+		c.JSON(http.StatusForbidden, middleware.ErrorResponse{
+			Code:    "FORBIDDEN",
+			Message: "sensitive export access requires Administrator role",
+		})
 		return
 	}
 

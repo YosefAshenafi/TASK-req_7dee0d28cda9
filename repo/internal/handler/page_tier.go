@@ -88,8 +88,8 @@ func (h *PageTierHandler) PostCreate(c *gin.Context) {
 	t := &domain.RewardTier{
 		Name:           c.PostForm("name"),
 		InventoryCount: formInt(c, "inventory_count"),
-		PurchaseLimit:  formInt(c, "purchase_limit"),
-		AlertThreshold: formInt(c, "alert_threshold"),
+		PurchaseLimit:  normalizePurchaseLimit(formInt(c, "purchase_limit")),
+		AlertThreshold: normalizeAlertThreshold(formInt(c, "alert_threshold")),
 	}
 	if d := c.PostForm("description"); d != "" {
 		t.Description = &d
@@ -110,8 +110,8 @@ func (h *PageTierHandler) PostUpdate(c *gin.Context) {
 		ID:             id,
 		Name:           c.PostForm("name"),
 		InventoryCount: formInt(c, "inventory_count"),
-		PurchaseLimit:  formInt(c, "purchase_limit"),
-		AlertThreshold: formInt(c, "alert_threshold"),
+		PurchaseLimit:  normalizePurchaseLimit(formInt(c, "purchase_limit")),
+		AlertThreshold: normalizeAlertThreshold(formInt(c, "alert_threshold")),
 		Version:        formInt(c, "version"),
 	}
 	if d := c.PostForm("description"); d != "" {
