@@ -6,17 +6,20 @@ function confirmAction(message, form) {
     form.submit();
   }
 }
+window.confirmAction = confirmAction;
 
 // ── Modal helpers ─────────────────────────────────────────────
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('open');
 }
+window.openModal = openModal;
 
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.remove('open');
 }
+window.closeModal = closeModal;
 
 // Close modal on backdrop click
 document.addEventListener('click', function(e) {
@@ -46,6 +49,7 @@ function validateTracking(input) {
     input.classList.remove('is-error');
   }
 }
+window.validateTracking = validateTracking;
 
 // ── Auto-dismiss flash messages ───────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {

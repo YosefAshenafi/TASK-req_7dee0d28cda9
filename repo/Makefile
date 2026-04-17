@@ -4,8 +4,8 @@ APP := fulfillops-app
 .PHONY: up down build logs ps \
         migrate-up migrate-down migrate-reset \
         generate-key templ-generate \
-        test test-repo test-service test-handler test-jobs test-integration smoke \
-        lint shell db-shell
+        test test-repo test-service test-handler test-jobs test-integration test-frontend smoke \
+        seed-demo lint shell db-shell
 
 # ── Docker lifecycle ──────────────────────────────────────────────────────────
 
@@ -74,8 +74,14 @@ TEST_RUN = docker run --rm \
 	-e FULFILLOPS_SESSION_SECRET=testsessionsecretchars32bytes000 \
 	golang:1.23-alpine
 
-test:
+test: test-frontend
 	$(TEST_RUN) go test ./... -v -timeout 120s
+
+test-frontend:
+	docker run --rm \
+		-v $(CURDIR)/static/js:/src -w /src \
+		node:20-alpine \
+		sh -c "npm install --silent && npm test -- --reporter=verbose"
 
 test-repo:
 	$(TEST_RUN) go test ./internal/repository/... -v -timeout 60s
@@ -90,7 +96,22 @@ test-jobs:
 	$(TEST_RUN) go test ./internal/job/... -v -timeout 60s
 
 test-integration:
-	$(TEST_RUN) go test ./tests/integration/... -v -timeout 180s
+	$(TEST_RUN) go test ./integration/... -v -timeout 180s
+
+seed-demo:
+	@echo "Seeding demo specialist and auditor accounts..."
+	@COOKIE=$$(curl -s -c /tmp/fo_seed.jar http://localhost:8080/api/v1/auth/login \
+		-H "Content-Type: application/json" \
+		-d '{"username":"admin","password":"Admin@FulfillOps1"}' | \
+		python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('username') else 1)" && \
+		grep fulfillops_session /tmp/fo_seed.jar | awk '{print $$NF}') && \
+	curl -s -b "fulfillops_session=$$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+		-H "Content-Type: application/json" \
+		-d '{"username":"specialist","email":"specialist@fulfillops.local","password":"Spec@Demo1!","role":"FULFILLMENT_SPECIALIST"}' && \
+	curl -s -b "fulfillops_session=$$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+		-H "Content-Type: application/json" \
+		-d '{"username":"auditor","email":"auditor@fulfillops.local","password":"Audit@Demo1!","role":"AUDITOR"}' && \
+	echo "Demo users created." || echo "seed-demo: failed (is the stack running?)"
 
 smoke: down-volumes
 	$(COMPOSE) up --build -d

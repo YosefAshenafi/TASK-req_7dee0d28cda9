@@ -1,0 +1,35 @@
+
+> fulfillops-frontend@1.0.0 test
+> vitest run --reporter=verbose
+
+
+ RUN  v1.6.1 /src
+
+ ✓ app.test.js > confirmAction > submits the form when the user confirms
+ ✓ app.test.js > confirmAction > does not submit when the user cancels
+ ✓ app.test.js > confirmAction > falls back to the default confirmation message when none provided
+ ✓ app.test.js > openModal / closeModal > adds the "open" class when openModal is called
+ ✓ app.test.js > openModal / closeModal > removes the "open" class when closeModal is called
+ ✓ app.test.js > openModal / closeModal > is a no-op when the element does not exist
+ ✓ app.test.js > backdrop click closes modal > removes "open" when the backdrop itself is clicked
+ ✓ app.test.js > backdrop click closes modal > does not close when a child element inside the backdrop is clicked
+ ✓ app.test.js > Escape key closes all open modals > removes "open" from every open modal on Escape
+ ✓ app.test.js > validateTracking > flags tracking numbers shorter than 8 characters
+ ✓ app.test.js > validateTracking > flags tracking numbers longer than 30 characters
+ ✓ app.test.js > validateTracking > flags non-alphanumeric characters
+ ✓ app.test.js > validateTracking > clears the error for a valid alphanumeric tracking number
+ ✓ app.test.js > validateTracking > accepts an empty value without showing an error
+ ✓ app.test.js > tracking blur listener > validates on blur when input has data-validate="tracking"
+ ✓ app.test.js > flash auto-dismiss > schedules a 4-second fade for flash-success
+ ✓ app.test.js > flash auto-dismiss > does not schedule a fade for flash-error messages
+ ✓ app.test.js > flash auto-dismiss > removes the flash element after the fade completes
+ ✓ app.test.js > required-field submit guard > prevents submission and shows an error when required field is blank
+ ✓ app.test.js > required-field submit guard > allows submission when the required field has content
+ ✓ app.test.js > dashboard auto-refresh > registers a 60-second reload when data-autorefresh is set on body
+ ✓ app.test.js > dashboard auto-refresh > does not register the reload when data-autorefresh is absent
+
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  11:53:02
+   Duration  888ms (transform 76ms, setup 0ms, collect 68ms, tests 27ms, environment 401ms, prepare 83ms)
+

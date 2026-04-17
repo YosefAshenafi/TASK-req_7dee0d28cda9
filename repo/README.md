@@ -1,3 +1,5 @@
+Project type: fullstack
+
 # FulfillOps — Rewards & Compliance Console
 
 End-to-end reward fulfillment management: tiers, inventory, lifecycle state machine (Draft → Shipped / Voucher Issued → Completed), SLA enforcement, messaging, audit trails, and backup/DR.
@@ -9,8 +11,6 @@ End-to-end reward fulfillment management: tiers, inventory, lifecycle state mach
 ## 1 — Static Review
 
 All business logic is in plain Go under `internal/`. No running stack is required to review the code.
-
-Key areas:
 
 | Area | Path |
 |---|---|
@@ -24,75 +24,23 @@ Key areas:
 | Unit / handler tests | `internal/*/...` |
 | API / integration / E2E tests | `tests/` |
 
-Run unit and handler tests without Docker or a live database:
-
-```bash
-go test ./internal/...
-```
-
 ---
 
-## 2 — Local Run (without Docker)
+## 2 — Startup
 
-### Prerequisites
-
-- Go 1.22+
-- PostgreSQL 16 (running locally)
-- `golang-migrate` CLI — `go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest`
-
-### Steps
-
-1. **Clone and configure**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env: set DATABASE_URL, FULFILLOPS_SESSION_SECRET, and the bootstrap-admin vars
-   ```
-
-2. **Generate an encryption key**
-
-   ```bash
-   make generate-key
-   # Copy the generated file path into FULFILLOPS_ENCRYPTION_KEY_PATH in .env
-   ```
-
-3. **Run migrations**
-
-   ```bash
-   migrate -path ./migrations -database "$DATABASE_URL" up
-   ```
-
-4. **Start the server**
-
-   ```bash
-   source .env
-   go run ./cmd/server/main.go
-   ```
-
-   Open **http://localhost:8080/auth/login**
-
-5. **First login**
-
-   Set `FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL` and `FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD` in `.env`
-   before starting the server. The bootstrap admin account is created on startup (no-op if an
-   administrator already exists). You will be required to change the password on first login.
-
----
-
-## 3 — Docker Run
-
-Docker is the easiest path for a full local stack.
+Docker is the only required dependency. Run from the `repo/` directory:
 
 ```bash
-docker compose up --build -d
+docker-compose up
 ```
 
-Open **http://localhost:8080**
+This builds the images and starts PostgreSQL 16 and the application. No `npm install`, `pip install`, `apt-get`, or any other manual setup is needed.
+
+Open **http://localhost:8080/auth/login**
 
 On first start the entrypoint auto-generates a 32-byte AES-256 key at `/app/keystore/encryption.key`
-(persisted in the `app_key` Docker volume). Bootstrap credentials are read from the compose
-environment — set `FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL` and `FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD` in
-your shell or a `.env` file before running.
+(persisted in the `app_key` Docker volume). The administrator account is created automatically on startup
+from the bootstrap env vars in `docker/docker-compose.yml` — this is a no-op if an administrator already exists.
 
 ### Stop
 
@@ -103,42 +51,113 @@ docker compose down -v       # also delete all data
 
 ---
 
+## Demo Credentials
+
+The administrator account is seeded automatically on first startup from env vars in `docker/docker-compose.yml`:
+
+| Role                   | Username      | Email                        | Password          |
+|------------------------|---------------|------------------------------|-------------------|
+| Administrator          | `admin`       | `admin@fulfillops.local`     | `Admin@FulfillOps1` |
+| Fulfillment Specialist | `specialist`  | `specialist@fulfillops.local`| `Spec@Demo1!`     |
+| Auditor                | `auditor`     | `auditor@fulfillops.local`   | `Audit@Demo1!`    |
+
+After the first `docker-compose up`, run the following **once** to seed the specialist and auditor accounts:
+
+```bash
+# 1. Login as admin and capture the session cookie
+curl -sc /tmp/fo_seed.jar http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@FulfillOps1"}'
+COOKIE=$(grep fulfillops_session /tmp/fo_seed.jar | awk '{print $NF}')
+
+# 2. Create the fulfillment specialist account
+curl -b "fulfillops_session=$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"specialist","email":"specialist@fulfillops.local","password":"Spec@Demo1!","role":"FULFILLMENT_SPECIALIST"}'
+
+# 3. Create the auditor account
+curl -b "fulfillops_session=$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"auditor","email":"auditor@fulfillops.local","password":"Audit@Demo1!","role":"AUDITOR"}'
+```
+
+---
+
+## 3 — Verification
+
+After startup (and running the seed commands above), verify the stack is healthy with this curl flow:
+
+### Step 1 — Confirm the app is live
+
+```bash
+curl -sf http://localhost:8080/healthz
+# → {"status":"ok"}
+```
+
+### Step 2 — Login as admin and capture the session cookie
+
+```bash
+curl -sc /tmp/admin.cookie http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@FulfillOps1"}'
+# → HTTP 200  {"id":"...","username":"admin","role":"ADMINISTRATOR"}
+```
+
+### Step 3 — Create a reward tier
+
+```bash
+curl -sb /tmp/admin.cookie -X POST http://localhost:8080/api/v1/tiers \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Gold","inventory_count":100,"purchase_limit":5,"alert_threshold":10}'
+# → HTTP 201  {"id":"<tier-id>","name":"Gold",...}
+TIER_ID=$(curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/tiers | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['items'][0]['id'])")
+```
+
+### Step 4 — List tiers and confirm the new record appears
+
+```bash
+curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/tiers
+# → HTTP 200  {"items":[{"id":"<tier-id>","name":"Gold",...}],"total":1,...}
+```
+
+### Step 5 — Verify admin health
+
+```bash
+curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/admin/health
+# → HTTP 200  {"status":"ok","checks":{"database":"ok","encryption":"ok",...}}
+```
+
+**Expected outcomes**: all five curl calls return the documented HTTP status; `/healthz` and `/api/v1/admin/health` both show `"status":"ok"`.
+
+---
+
 ## Environment Variables
 
-| Variable | Default | Description |
+All defaults below are sourced from `docker/docker-compose.yml`.
+
+| Variable | Default (docker-compose) | Description |
 |---|---|---|
-| `DATABASE_URL` | *(required)* | PostgreSQL connection string |
-| `FULFILLOPS_ENCRYPTION_KEY_PATH` | `/app/keystore/encryption.key` | Path to AES-256 key file (0600, base64) |
+| `DATABASE_URL` | `postgres://fulfillops:fulfillops_dev@db:5432/fulfillops?sslmode=disable` | PostgreSQL connection string |
+| `FULFILLOPS_ENCRYPTION_KEY_PATH` | `/app/keystore/encryption.key` | Path to AES-256 key file (auto-generated on first start) |
 | `FULFILLOPS_EXPORT_DIR` | `/app/exports` | Report CSV output directory |
 | `FULFILLOPS_BACKUP_DIR` | `/app/backups` | pg_dump backup directory |
-| `FULFILLOPS_ASSETS_DIR` | `/app/assets` | Static assets directory |
-| `FULFILLOPS_MIGRATIONS_PATH` | `/app/migrations` | SQL migrations directory |
 | `FULFILLOPS_PORT` | `8080` | HTTP listen port |
-| `FULFILLOPS_SESSION_SECRET` | *(must be set)* | Cookie session signing key (≥32 chars) |
-| `FULFILLOPS_SECURE_COOKIES` | `true` | Set `Secure` on session cookies — disable only for local HTTP dev |
-| `FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL` | *(empty)* | Email for first-run administrator bootstrap |
-| `FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD` | *(empty)* | Password for first-run administrator bootstrap |
-| `FULFILLOPS_SCHEDULER_TZ` | *(empty = UTC)* | IANA timezone for daily scheduled jobs |
+| `FULFILLOPS_SESSION_SECRET` | `dev-session-secret-change-in-prod!!` | Cookie session signing key (≥32 chars; override via `SESSION_SECRET`) |
+| `FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL` | `admin@fulfillops.local` | Email for first-run administrator bootstrap |
+| `FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD` | `Admin@FulfillOps1` | Password for first-run administrator bootstrap |
 | `GIN_MODE` | `debug` | Gin framework mode (`debug` / `release` / `test`) |
-
-See `.env.example` for annotated defaults.
 
 ---
 
 ## Running Tests
 
-Unit and handler tests require no live services:
+All test suites run inside Docker — no local Go, Node, or PostgreSQL required:
 
 ```bash
-go test ./internal/...
-```
-
-Integration, API, and E2E tests require a running stack:
-
-```bash
-./run_tests.sh              # All suites
-./run_tests.sh unit         # Service + handler + repo + job (no DB)
-./run_tests.sh api          # Repository + API HTTP tests
+./run_tests.sh              # All suites (unit + API + E2E)
+./run_tests.sh unit         # Domain + util + service tests only
+./run_tests.sh api          # Repository + API HTTP tests only
 ./run_tests.sh e2e          # End-to-end + integration + job + config suites
 ```
 
@@ -156,9 +175,7 @@ Integration, API, and E2E tests require a running stack:
 | `cleanup` | daily at 03:00 | Purge soft-deleted rows beyond 30-day recovery window |
 | `export-cleanup` | daily at 03:30 | Remove expired report export files |
 
-Daily times are in the timezone set by `FULFILLOPS_SCHEDULER_TZ` (default UTC).
-
-Trigger any job ad-hoc from `/admin/health` or via `POST /api/v1/admin/jobs/:name/run`.
+Daily times are in UTC. Trigger any job ad-hoc from `/admin/health` or via `POST /api/v1/admin/jobs/:name/run`.
 
 ---
 

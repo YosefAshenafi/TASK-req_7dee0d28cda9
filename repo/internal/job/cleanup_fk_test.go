@@ -108,3 +108,116 @@ func TestCleanupJob_PurgesFulfillmentWithRelatedRows(t *testing.T) {
 	}
 	fmt.Printf("TestCleanupJob_PurgesFulfillmentWithRelatedRows: deleted %d records\n", n)
 }
+
+func TestCleanupJob_PurgesCustomerWithSendLog(t *testing.T) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("DATABASE_URL not set — skipping customer cleanup test")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		t.Fatalf("pgxpool.New: %v", err)
+	}
+	defer pool.Close()
+
+	// Create a customer.
+	custID := uuid.New()
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO customers (id,name,version,created_at,updated_at)
+		 VALUES ($1,'CleanupCustSendLog',1,NOW(),NOW())`, custID); err != nil {
+		t.Fatalf("insert customer: %v", err)
+	}
+
+	// Create a send_log referencing the customer.
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO send_logs (id,recipient_id,recipient_type,channel,status,created_at,updated_at)
+		 VALUES ($1,$2,'CUSTOMER','IN_APP','QUEUED',NOW(),NOW())`, uuid.New(), custID); err != nil {
+		t.Fatalf("insert send_log: %v", err)
+	}
+
+	// Soft-delete the customer beyond the retention window.
+	cutoff := time.Now().UTC().Add(-31 * 24 * time.Hour)
+	if _, err := pool.Exec(ctx,
+		`UPDATE customers SET deleted_at=$1 WHERE id=$2`, cutoff, custID); err != nil {
+		t.Fatalf("soft-delete customer: %v", err)
+	}
+
+	j := NewCleanupJob(pool, 30)
+	n, err := j.Run(ctx)
+	if err != nil {
+		t.Fatalf("CleanupJob.Run: %v", err)
+	}
+	if n < 1 {
+		t.Fatalf("expected at least 1 deleted record, got %d", n)
+	}
+
+	var count int
+	if err := pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM customers WHERE id=$1`, custID).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("customer still present after cleanup")
+	}
+}
+
+func TestCleanupJob_PurgesMessageTemplateWithSendLog(t *testing.T) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("DATABASE_URL not set — skipping template cleanup test")
+	}
+
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		t.Fatalf("pgxpool.New: %v", err)
+	}
+	defer pool.Close()
+
+	var adminID uuid.UUID
+	if err := pool.QueryRow(ctx, `SELECT id FROM users LIMIT 1`).Scan(&adminID); err != nil {
+		t.Fatalf("no users in DB: %v", err)
+	}
+
+	// Create a message_template.
+	tmplID := uuid.New()
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO message_templates (id,name,category,channel,body_template,version,created_at,updated_at)
+		 VALUES ($1,'CleanupTmpl','FULFILLMENT_PROGRESS','IN_APP','body',1,NOW(),NOW())`, tmplID); err != nil {
+		t.Fatalf("insert template: %v", err)
+	}
+
+	// Create a send_log referencing the template.
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO send_logs (id,template_id,recipient_id,recipient_type,channel,status,created_at,updated_at)
+		 VALUES ($1,$2,$3,'CUSTOMER','IN_APP','QUEUED',NOW(),NOW())`, uuid.New(), tmplID, uuid.New()); err != nil {
+		t.Fatalf("insert send_log: %v", err)
+	}
+
+	// Soft-delete the template beyond the retention window.
+	cutoff := time.Now().UTC().Add(-31 * 24 * time.Hour)
+	if _, err := pool.Exec(ctx,
+		`UPDATE message_templates SET deleted_at=$1, deleted_by=$2 WHERE id=$3`, cutoff, adminID, tmplID); err != nil {
+		t.Fatalf("soft-delete template: %v", err)
+	}
+
+	j := NewCleanupJob(pool, 30)
+	n, err := j.Run(ctx)
+	if err != nil {
+		t.Fatalf("CleanupJob.Run: %v", err)
+	}
+	if n < 1 {
+		t.Fatalf("expected at least 1 deleted record, got %d", n)
+	}
+
+	var count int
+	if err := pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM message_templates WHERE id=$1`, tmplID).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("template still present after cleanup")
+	}
+}

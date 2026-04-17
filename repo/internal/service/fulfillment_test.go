@@ -73,6 +73,16 @@ func buildFulfillmentService(t *testing.T) service.FulfillmentService {
 	return service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, customerRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 }
 
+// testShippingAddr returns a valid ShippingAddressEncrypted for PHYSICAL fulfillment tests.
+func testShippingAddr() *service.ShippingAddressEncrypted {
+	return &service.ShippingAddressEncrypted{
+		Line1Encrypted: []byte("123 Test St"),
+		City:           "Testville",
+		State:          "CA",
+		ZipCode:        "90210",
+	}
+}
+
 // ── Transition Tests ──────────────────────────────────────────────────────────
 
 func TestFulfillmentAllTransitions(t *testing.T) {
@@ -101,6 +111,7 @@ func TestFulfillmentAllTransitions(t *testing.T) {
 	// DRAFT → READY_TO_SHIP
 	f, err = svc.Transition(ctx, service.TransitionInput{
 		FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip,
+		ShippingAddr: testShippingAddr(),
 	})
 	if err != nil {
 		t.Fatalf("READY_TO_SHIP: %v", err)
@@ -157,7 +168,7 @@ func TestTransitionTerminalReturnsError(t *testing.T) {
 	// Cancel it.
 	reason := "test cancel"
 	_, _ = svc.Transition(ctx, service.TransitionInput{
-		FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip,
+		FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip, ShippingAddr: testShippingAddr(),
 	})
 	f2, err := svc.Transition(ctx, service.TransitionInput{
 		FulfillmentID: f.ID, ToStatus: domain.StatusCanceled, Reason: &reason,
@@ -192,7 +203,7 @@ func TestTransitionShippedWithoutTracking(t *testing.T) {
 	f, _ := svc.Create(ctx, service.CreateFulfillmentInput{
 		TierID: tier.ID, CustomerID: cust.ID, Type: domain.TypePhysical,
 	})
-	_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip})
+	_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip, ShippingAddr: testShippingAddr()})
 
 	// Try to ship without tracking number.
 	carrier := "UPS"
@@ -249,7 +260,7 @@ func TestInventoryRestoredOnCancel(t *testing.T) {
 	})
 	// inventory now at 1
 
-	_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip})
+	_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip, ShippingAddr: testShippingAddr()})
 	reason := "changed mind"
 	_, err := svc.Transition(ctx, service.TransitionInput{
 		FulfillmentID: f.ID, ToStatus: domain.StatusCanceled, Reason: &reason,
@@ -317,7 +328,7 @@ func TestCanceledNotCountedTowardLimit(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create %d: %v", i+1, err)
 		}
-		_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip})
+		_, _ = svc.Transition(ctx, service.TransitionInput{FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip, ShippingAddr: testShippingAddr()})
 		reason := "canceled for test"
 		_, _ = svc.Transition(ctx, service.TransitionInput{
 			FulfillmentID: f.ID, ToStatus: domain.StatusCanceled, Reason: &reason,
@@ -374,7 +385,7 @@ func TestStaleVersionConflict(t *testing.T) {
 
 	// Advance version by making a real transition.
 	_, _ = svc.Transition(ctx, service.TransitionInput{
-		FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip,
+		FulfillmentID: f.ID, ToStatus: domain.StatusReadyToShip, ShippingAddr: testShippingAddr(),
 	})
 
 	// Force stale version on f (version 1 was already consumed).

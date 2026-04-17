@@ -32,6 +32,12 @@
 --- PASS: TestReservationStatusIsValid (0.00s)
 === RUN   TestTemplateCategoryIsValid
 --- PASS: TestTemplateCategoryIsValid (0.00s)
+=== RUN   TestRecipientTypeIsValid
+--- PASS: TestRecipientTypeIsValid (0.00s)
+=== RUN   TestPageRequestNormalize
+--- PASS: TestPageRequestNormalize (0.00s)
+=== RUN   TestPageRequestOffset
+--- PASS: TestPageRequestOffset (0.00s)
 === RUN   TestSentinelErrorsAreNonNilAndHaveMessages
 --- PASS: TestSentinelErrorsAreNonNilAndHaveMessages (0.00s)
 === RUN   TestDomainErrorMessageAndUnwrap
@@ -70,21 +76,37 @@
 --- PASS: TestMaskEmail (0.00s)
 === RUN   TestMaskAddress
 --- PASS: TestMaskAddress (0.00s)
+=== RUN   TestMaskCity
+--- PASS: TestMaskCity (0.00s)
+=== RUN   TestMaskZip
+--- PASS: TestMaskZip (0.00s)
+=== RUN   TestMaskState
+--- PASS: TestMaskState (0.00s)
+=== RUN   TestMaskShippingAddressForAuditor
+--- PASS: TestMaskShippingAddressForAuditor (0.00s)
 === RUN   TestMaskVoucherCode
 --- PASS: TestMaskVoucherCode (0.00s)
 PASS
-coverage: 88.8% of statements in ./internal/domain/..., ./internal/util/...
-ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.004s	coverage: 88.8% of statements in ./internal/domain/..., ./internal/util/...
+coverage: 95.3% of statements in ./internal/domain/..., ./internal/util/...
+ok  	github.com/fulfillops/fulfillops/unit_tests	0.004s	coverage: 95.3% of statements in ./internal/domain/..., ./internal/util/...
 === RUN   TestAuditServiceLogIncludesContext
 --- PASS: TestAuditServiceLogIncludesContext (0.00s)
 === RUN   TestUserServiceAndInventoryService
---- PASS: TestUserServiceAndInventoryService (0.21s)
+--- PASS: TestUserServiceAndInventoryService (0.20s)
 === RUN   TestExceptionAndMessagingServices
 --- PASS: TestExceptionAndMessagingServices (0.00s)
 === RUN   TestBackupAndExportServices
 --- PASS: TestBackupAndExportServices (0.00s)
 === RUN   TestPageRequestAndSLAHelpers
 --- PASS: TestPageRequestAndSLAHelpers (0.00s)
+=== RUN   TestBootstrapAdmin_CreatesAdminWhenNoneExists
+--- PASS: TestBootstrapAdmin_CreatesAdminWhenNoneExists (0.10s)
+=== RUN   TestBootstrapAdmin_NoopWhenAdminExists
+--- PASS: TestBootstrapAdmin_NoopWhenAdminExists (0.00s)
+=== RUN   TestChangePassword_ClearsRotateFlag
+--- PASS: TestChangePassword_ClearsRotateFlag (0.15s)
+=== RUN   TestChangePassword_RejectsWeakPassword
+--- PASS: TestChangePassword_RejectsWeakPassword (0.00s)
 === RUN   TestValidateShippingAddress_AllBranches
 === RUN   TestValidateShippingAddress_AllBranches/missing_line1
 === RUN   TestValidateShippingAddress_AllBranches/missing_city
@@ -125,6 +147,46 @@ ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.004s	coverage: 88.8% of
 --- PASS: TestBackupService_RestoreCorruptFile (0.00s)
 === RUN   TestBackupService_ListAndRestore
 --- PASS: TestBackupService_ListAndRestore (0.00s)
+=== RUN   TestCreate_SoftDeletedCustomerRejected
+--- PASS: TestCreate_SoftDeletedCustomerRejected (0.00s)
+=== RUN   TestCreate_SoftDeletedTierRejected
+--- PASS: TestCreate_SoftDeletedTierRejected (0.00s)
+=== RUN   TestTransition_PhysicalReadyToShipRequiresAddress
+--- PASS: TestTransition_PhysicalReadyToShipRequiresAddress (0.00s)
+=== RUN   TestTransition_PhysicalReadyToShipExistingAddressAccepted
+--- PASS: TestTransition_PhysicalReadyToShipExistingAddressAccepted (0.00s)
+=== RUN   TestFulfillmentFilters_IncludeDeleted
+--- PASS: TestFulfillmentFilters_IncludeDeleted (0.00s)
+=== RUN   TestRetryPending_FailedRowsRetried
+--- PASS: TestRetryPending_FailedRowsRetried (0.00s)
+=== RUN   TestRetryPending_MaxAttemptsClears
+--- PASS: TestRetryPending_MaxAttemptsClears (0.00s)
+=== RUN   TestRetryPending_WindowExpiredClears
+--- PASS: TestRetryPending_WindowExpiredClears (0.00s)
+=== RUN   TestMarkFailed_QueuedToFailed_SchedulerRetryCycle
+--- PASS: TestMarkFailed_QueuedToFailed_SchedulerRetryCycle (0.00s)
+=== RUN   TestMarkFailed_RejectsSentOrPrinted
+--- PASS: TestMarkFailed_RejectsSentOrPrinted (0.00s)
+=== RUN   TestDispatch_SuccessfulSendNoRetryRow
+--- PASS: TestDispatch_SuccessfulSendNoRetryRow (0.00s)
+=== RUN   TestRetryPending_ExactlyThreeAttemptsOnPersistentFailure
+--- PASS: TestRetryPending_ExactlyThreeAttemptsOnPersistentFailure (0.00s)
+=== RUN   TestRetryPending_NoRetryAfter30MinWindow
+--- PASS: TestRetryPending_NoRetryAfter30MinWindow (0.00s)
+=== RUN   TestRetryPending_MidWindowSuccessStopsFurtherRetries
+--- PASS: TestRetryPending_MidWindowSuccessStopsFurtherRetries (0.00s)
+=== RUN   TestTransition_ReadyToShip_UpdatesExistingAddressInsteadOfColliding
+--- PASS: TestTransition_ReadyToShip_UpdatesExistingAddressInsteadOfColliding (0.00s)
+=== RUN   TestUpdateShippingAddress_Maintenance_UpdatesExisting
+--- PASS: TestUpdateShippingAddress_Maintenance_UpdatesExisting (0.00s)
+=== RUN   TestUpdateShippingAddress_Maintenance_CreatesWhenMissing
+--- PASS: TestUpdateShippingAddress_Maintenance_CreatesWhenMissing (0.00s)
+=== RUN   TestUpdateShippingAddress_Rejects_VoucherType
+--- PASS: TestUpdateShippingAddress_Rejects_VoucherType (0.00s)
+=== RUN   TestUpdateShippingAddress_Rejects_DeliveredFulfillment
+--- PASS: TestUpdateShippingAddress_Rejects_DeliveredFulfillment (0.00s)
+=== RUN   TestUpdateShippingAddress_Rejects_StaleVersion
+--- PASS: TestUpdateShippingAddress_Rejects_StaleVersion (0.00s)
 === RUN   TestEncryptDecryptRoundTrip
 --- PASS: TestEncryptDecryptRoundTrip (0.00s)
 === RUN   TestEncryptProducesUniqueCiphertexts
@@ -140,15 +202,15 @@ ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.004s	coverage: 88.8% of
     --- PASS: TestNewEncryptionServiceErrors/too_short_key (0.00s)
     --- PASS: TestNewEncryptionServiceErrors/invalid_base64 (0.00s)
 === RUN   TestFulfillmentAllTransitions
---- PASS: TestFulfillmentAllTransitions (0.02s)
+--- PASS: TestFulfillmentAllTransitions (0.03s)
 === RUN   TestTransitionTerminalReturnsError
---- PASS: TestTransitionTerminalReturnsError (0.00s)
+--- PASS: TestTransitionTerminalReturnsError (0.01s)
 === RUN   TestTransitionShippedWithoutTracking
 --- PASS: TestTransitionShippedWithoutTracking (0.00s)
 === RUN   TestInventoryDecrementedOnCreate
 --- PASS: TestInventoryDecrementedOnCreate (0.00s)
 === RUN   TestInventoryRestoredOnCancel
---- PASS: TestInventoryRestoredOnCancel (0.00s)
+--- PASS: TestInventoryRestoredOnCancel (0.01s)
 === RUN   TestPurchaseLimitEnforced
 --- PASS: TestPurchaseLimitEnforced (0.00s)
 === RUN   TestCanceledNotCountedTowardLimit
@@ -156,11 +218,11 @@ ok  	github.com/fulfillops/fulfillops/tests/unit_tests	0.004s	coverage: 88.8% of
 === RUN   TestCreateWhenInventoryZero
 --- PASS: TestCreateWhenInventoryZero (0.00s)
 === RUN   TestStaleVersionConflict
---- PASS: TestStaleVersionConflict (0.00s)
+--- PASS: TestStaleVersionConflict (0.01s)
 === RUN   TestSLAPhysical
 --- PASS: TestSLAPhysical (0.00s)
 === RUN   TestSLAVoucher
 --- PASS: TestSLAVoucher (0.00s)
 PASS
-coverage: 65.2% of statements in ./internal/domain/..., ./internal/util/...
-ok  	github.com/fulfillops/fulfillops/internal/service	0.279s	coverage: 65.2% of statements in ./internal/domain/..., ./internal/util/...
+coverage: 54.7% of statements in ./internal/domain/..., ./internal/util/...
+ok  	github.com/fulfillops/fulfillops/internal/service	0.539s	coverage: 54.7% of statements in ./internal/domain/..., ./internal/util/...

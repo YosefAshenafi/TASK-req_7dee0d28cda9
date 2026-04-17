@@ -122,7 +122,7 @@ run_suite() {
   # Merged statement % for -coverpkg (go test's per-package "coverage:" line is not the merge total).
   # Prefer a local `go tool cover` — it's instant. Fall back to docker when Go isn't installed.
   local cov="N/A"
-  if [[ -f "${COV_DIR}/${safe}.out" ]] && [[ "${suite_exit}" -eq 0 ]]; then
+  if [[ -f "${COV_DIR}/${safe}.out" ]]; then
     if command -v go >/dev/null 2>&1; then
       cov=$(cd "${REPO_ROOT}" && go tool cover -func ".coverage/${safe}.out" 2>/dev/null \
         | grep '^total:' | grep -oE '[0-9]+\.[0-9]+' | tail -1)
@@ -151,9 +151,9 @@ echo    "║         FulfillOps — Test Suite Runner                   ║"
 echo -e "╚══════════════════════════════════════════════════════════╝${RESET}"
 
 declare -a ALL_SUITES=(
-  "Unit Tests|./tests/unit_tests/ ./internal/service|./internal/domain/...,./internal/util/..."
-  "API Tests|./tests/API_tests/ ./internal/repository|./internal/repository/..."
-  "E2E Tests|./tests/e2e_tests/ ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/..."
+  "Unit Tests|./unit_tests/ ./internal/service|./internal/domain/...,./internal/util/..."
+  "API Tests|./API_tests/ ./internal/repository|./internal/repository/..."
+  "E2E Tests|./e2e_tests/ ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/..."
 )
 
 # Filter suites based on the first CLI argument (defaults to running every suite).
@@ -168,13 +168,13 @@ case "$FILTER" in
     # Collapse all "package-level unit-ish" filters onto the Unit suite which
     # already runs service + unit tests. Separate selective package runs are
     # easy to re-derive with `go test ./internal/<pkg>/...` directly.
-    SUITES=("Unit Tests|./tests/unit_tests/ ./internal/service ./internal/handler ./internal/repository ./internal/job|./internal/...")
+    SUITES=("Unit Tests|./unit_tests/ ./internal/service ./internal/handler ./internal/repository ./internal/job|./internal/...")
     ;;
   api)
-    SUITES=("API Tests|./tests/API_tests/ ./internal/repository|./internal/repository/...")
+    SUITES=("API Tests|./API_tests/ ./internal/repository|./internal/repository/...")
     ;;
   e2e|integration)
-    SUITES=("E2E Tests|./tests/e2e_tests/ ./tests/integration ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/...")
+    SUITES=("E2E Tests|./e2e_tests/ ./integration ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/...")
     ;;
   *)
     echo -e "${RED}Unknown suite filter: ${FILTER}${RESET}"

@@ -145,6 +145,60 @@ func (b *branchSLA) CalculateDeadline(_ context.Context, _ domain.FulfillmentTyp
 }
 func (b *branchSLA) IsOverdue(time.Time) bool { return true }
 
+// errSLAService causes CalculateDeadline to return an error (tests the log+continue path).
+type errSLAService struct{}
+
+func (e *errSLAService) CalculateDeadline(_ context.Context, _ domain.FulfillmentType, _ time.Time) (time.Time, error) {
+	return time.Time{}, errors.New("sla calc error")
+}
+func (e *errSLAService) IsOverdue(time.Time) bool { return false }
+
+// notOverdueSLAService has IsOverdue always return false (tests the not-overdue continue path).
+type notOverdueSLAService struct{}
+
+func (n *notOverdueSLAService) CalculateDeadline(_ context.Context, _ domain.FulfillmentType, readyAt time.Time) (time.Time, error) {
+	return readyAt.Add(time.Hour), nil
+}
+func (n *notOverdueSLAService) IsOverdue(time.Time) bool { return false }
+
+func TestOverdueJob_SLAErrorAndNotOverdueAndExistsOpenError(t *testing.T) {
+	readyAt := time.Now().UTC().Add(-time.Hour)
+	ff := domain.Fulfillment{ID: uuid.New(), Type: domain.TypePhysical, ReadyAt: &readyAt}
+
+	// Branch 1: SLA calc error → log and continue, created=0.
+	fulfill1 := &branchFulfillRepo{overdue: []domain.Fulfillment{ff}}
+	ex1 := &branchExceptionRepo{}
+	created, err := NewOverdueJob(fulfill1, ex1, &fakeExceptionSvc{repo: ex1}, &errSLAService{}).Run(context.Background())
+	if err != nil {
+		t.Fatalf("Branch1 Run: %v", err)
+	}
+	if created != 0 {
+		t.Fatalf("Branch1: expected 0 created (SLA error skipped), got %d", created)
+	}
+
+	// Branch 2: not overdue → continue, created=0.
+	fulfill2 := &branchFulfillRepo{overdue: []domain.Fulfillment{ff}}
+	ex2 := &branchExceptionRepo{}
+	created, err = NewOverdueJob(fulfill2, ex2, &fakeExceptionSvc{repo: ex2}, &notOverdueSLAService{}).Run(context.Background())
+	if err != nil {
+		t.Fatalf("Branch2 Run: %v", err)
+	}
+	if created != 0 {
+		t.Fatalf("Branch2: expected 0 created (not overdue), got %d", created)
+	}
+
+	// Branch 3: ExistsOpenForFulfillment returns error → log and continue, created=0.
+	fulfill3 := &branchFulfillRepo{overdue: []domain.Fulfillment{ff}}
+	ex3 := &branchExceptionRepo{existsErrFor: map[uuid.UUID]bool{ff.ID: true}}
+	created, err = NewOverdueJob(fulfill3, ex3, &fakeExceptionSvc{repo: ex3}, &branchSLA{}).Run(context.Background())
+	if err != nil {
+		t.Fatalf("Branch3 Run: %v", err)
+	}
+	if created != 0 {
+		t.Fatalf("Branch3: expected 0 created (ExistsOpen error skipped), got %d", created)
+	}
+}
+
 // branchFulfillRepo simulates ListOverdue and per-item behaviour.
 type branchFulfillRepo struct {
 	overdue []domain.Fulfillment
