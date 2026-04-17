@@ -169,8 +169,9 @@ func (b *branchFulfillRepo) Update(context.Context, pgx.Tx, *domain.Fulfillment)
 func (b *branchFulfillRepo) CountByCustomerAndTier(context.Context, pgx.Tx, uuid.UUID, uuid.UUID, time.Time) (int, error) {
 	return 0, nil
 }
-func (b *branchFulfillRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (b *branchFulfillRepo) Restore(context.Context, uuid.UUID) error               { return nil }
+func (b *branchFulfillRepo) BumpVersion(context.Context, pgx.Tx, uuid.UUID, int) error { return nil }
+func (b *branchFulfillRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error    { return nil }
+func (b *branchFulfillRepo) Restore(context.Context, uuid.UUID) error                  { return nil }
 func (b *branchFulfillRepo) ListOverdue(context.Context) ([]domain.Fulfillment, error) {
 	return b.overdue, b.listErr
 }
@@ -289,7 +290,7 @@ func TestExportCleanupJob_MissingFilesAndRepoErrors(t *testing.T) {
 	repo := &branchReportRepo{
 		expired: []domain.ReportExport{{ID: uuid.New(), FilePath: strPtr("/nonexistent/path.csv")}},
 	}
-	if _, err := NewExportCleanupJob(repo).Run(context.Background()); err != nil {
+	if _, err := NewExportCleanupJob(repo, nil).Run(context.Background()); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
@@ -299,7 +300,7 @@ func TestExportCleanupJob_MissingFilesAndRepoErrors(t *testing.T) {
 		expired:   []domain.ReportExport{{ID: uuid.New()}},
 		deleteErr: errors.New("del fail"),
 	}
-	n, err := NewExportCleanupJob(repo2).Run(context.Background())
+	n, err := NewExportCleanupJob(repo2, nil).Run(context.Background())
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -309,12 +310,90 @@ func TestExportCleanupJob_MissingFilesAndRepoErrors(t *testing.T) {
 
 	// GetExpired error propagates.
 	repo3 := &branchReportRepo{getExpiredErr: errors.New("fetch fail")}
-	if _, err := NewExportCleanupJob(repo3).Run(context.Background()); err == nil {
+	if _, err := NewExportCleanupJob(repo3, nil).Run(context.Background()); err == nil {
 		t.Fatal("expected GetExpired error propagation")
 	}
 }
 
 func strPtr(s string) *string { return &s }
+
+// ── Timezone / DST scheduling tests ──────────────────────────────────────────
+
+func TestWithTimezone_NilPreservesUTC(t *testing.T) {
+	s := NewScheduler(&fakeJobRunRepo{})
+	s.WithTimezone(nil)
+	if s.tz != time.UTC {
+		t.Errorf("expected UTC after WithTimezone(nil), got %v", s.tz)
+	}
+}
+
+func TestWithTimezone_SetsLocation(t *testing.T) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("America/New_York tzdata unavailable")
+	}
+	s := NewScheduler(&fakeJobRunRepo{})
+	s.WithTimezone(loc)
+	if s.tz != loc {
+		t.Errorf("timezone not set: got %v, want %v", s.tz, loc)
+	}
+}
+
+func TestRunDailyLoop_NextFireUsesConfiguredTimezone(t *testing.T) {
+	// Build a fixed-offset zone UTC-5 and UTC+0, register a daily job at 02:00.
+	// For a reference "now" of 01:50 UTC, the UTC-5 scheduler sees 20:50 local
+	// time the previous day — next fire is at 02:00 local which equals 07:00 UTC.
+	// The plain UTC scheduler next fires at 02:00 UTC (10 minutes away).
+	// We verify the two schedulers produce different next-fire instants.
+
+	refUTC := time.Date(2024, 3, 10, 1, 50, 0, 0, time.UTC) // 01:50 UTC
+
+	nextFireIn := func(loc *time.Location, refNow time.Time, h, m int) time.Duration {
+		now := refNow.In(loc)
+		next := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, loc)
+		if !next.After(now) {
+			next = time.Date(now.Year(), now.Month(), now.Day()+1, h, m, 0, 0, loc)
+		}
+		return next.Sub(refNow)
+	}
+
+	utcWait := nextFireIn(time.UTC, refUTC, 2, 0)
+	minus5 := time.FixedZone("UTC-5", -5*60*60)
+	minus5Wait := nextFireIn(minus5, refUTC, 2, 0)
+
+	// UTC fires in ~10 min; UTC-5 fires in ~(2:00 - (-3:10)) = ~5h10min
+	if utcWait >= minus5Wait {
+		t.Errorf("UTC next-fire (%v) should be sooner than UTC-5 next-fire (%v)", utcWait, minus5Wait)
+	}
+}
+
+func TestRunDailyLoop_DSTSpringForwardDoesNotSkipDay(t *testing.T) {
+	// America/New_York springs forward on the second Sunday of March.
+	// 2025-03-09 02:00 EST does not exist — clocks jump to 03:00 EDT.
+	// Scheduling a daily job at 02:00 on that day should compute a valid
+	// (non-zero, positive) wait duration — not a negative or zero value.
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("America/New_York tzdata unavailable")
+	}
+
+	// 2025-03-09 01:55:00 EST (5 minutes before clocks spring forward)
+	refUTC := time.Date(2025, 3, 9, 6, 55, 0, 0, time.UTC) // 01:55 EST = 06:55 UTC
+
+	now := refUTC.In(loc)
+	next := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, loc)
+	if !next.After(now) {
+		next = time.Date(now.Year(), now.Month(), now.Day()+1, 2, 0, 0, 0, loc)
+	}
+	wait := next.Sub(refUTC)
+	if wait <= 0 {
+		t.Errorf("DST spring-forward: next fire time is in the past or immediate (wait=%v)", wait)
+	}
+	// Should be ~24h since 02:00 doesn't exist today — next valid 02:00 is tomorrow.
+	if wait < 20*time.Hour {
+		t.Errorf("DST spring-forward: next fire unexpectedly soon (wait=%v), expected ~24h", wait)
+	}
+}
 
 func TestSchedulerRegisterDailyRunsOnStartStopImmediately(t *testing.T) {
 	repo := &fakeJobRunRepo{}

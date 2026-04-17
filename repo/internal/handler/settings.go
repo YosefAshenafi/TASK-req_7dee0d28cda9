@@ -150,6 +150,10 @@ func (h *SettingsHandler) CreateBlackoutDate(c *gin.Context) {
 		return
 	}
 
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "blackout_dates", created.ID, "CREATE", nil, created)
+	}
+
 	c.JSON(http.StatusCreated, created)
 }
 
@@ -159,6 +163,10 @@ func (h *SettingsHandler) DeleteBlackoutDate(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: "invalid blackout date ID"})
 		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "blackout_dates", id, "DELETE", map[string]any{"id": id}, nil)
 	}
 
 	if err := h.blackoutRepo.Delete(c.Request.Context(), id); err != nil {

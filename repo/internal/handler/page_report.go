@@ -23,10 +23,16 @@ type PageReportHandler struct {
 	store      sessions.Store
 	reportRepo repository.ReportExportRepository
 	exportSvc  service.ExportService
+	auditSvc   service.AuditService
 }
 
 func NewPageReportHandler(store sessions.Store, reportRepo repository.ReportExportRepository, exportSvc service.ExportService) *PageReportHandler {
 	return &PageReportHandler{store: store, reportRepo: reportRepo, exportSvc: exportSvc}
+}
+
+func (h *PageReportHandler) WithAudit(auditSvc service.AuditService) *PageReportHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 func (h *PageReportHandler) ShowWorkspace(c *gin.Context) {
@@ -36,7 +42,7 @@ func (h *PageReportHandler) ShowWorkspace(c *gin.Context) {
 }
 
 func (h *PageReportHandler) PostGenerateExport(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	userID, _ := uuid.Parse(sess.Values["userID"].(string))
 
@@ -77,6 +83,9 @@ func (h *PageReportHandler) PostGenerateExport(c *gin.Context) {
 	if err != nil {
 		redirectWithFlash(c, h.store, "/reports", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "report_exports", created.ID, "CREATE", nil, created)
 	}
 
 	if h.exportSvc != nil {

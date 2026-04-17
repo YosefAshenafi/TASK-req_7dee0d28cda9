@@ -64,7 +64,7 @@ func (r *fixedTierRepo) Update(context.Context, *domain.RewardTier) (*domain.Rew
 	return nil, nil
 }
 func (r *fixedTierRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (r *fixedTierRepo) Restore(context.Context, uuid.UUID) error                { return nil }
+func (r *fixedTierRepo) Restore(context.Context, uuid.UUID) error               { return nil }
 func (r *fixedTierRepo) DecrementInventory(context.Context, pgx.Tx, uuid.UUID, int) error {
 	return nil
 }
@@ -97,7 +97,7 @@ func (r *fixedCustomerRepo) Update(context.Context, *domain.Customer) (*domain.C
 	return nil, nil
 }
 func (r *fixedCustomerRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (r *fixedCustomerRepo) Restore(context.Context, uuid.UUID) error                { return nil }
+func (r *fixedCustomerRepo) Restore(context.Context, uuid.UUID) error               { return nil }
 
 // zeroFulfillmentRepo is a stub fulfillment repo; CountByCustomerAndTier returns 0.
 type zeroFulfillmentRepo struct {
@@ -125,24 +125,35 @@ func (r *zeroFulfillmentRepo) Update(_ context.Context, _ pgx.Tx, f *domain.Fulf
 	f.Version++
 	return f, nil
 }
+func (r *zeroFulfillmentRepo) BumpVersion(_ context.Context, _ pgx.Tx, id uuid.UUID, expectedVersion int) error {
+	if r.created == nil || r.created.ID != id || r.created.Version != expectedVersion {
+		return domain.NewConflictError()
+	}
+	r.created.Version++
+	return nil
+}
 func (r *zeroFulfillmentRepo) CountByCustomerAndTier(context.Context, pgx.Tx, uuid.UUID, uuid.UUID, time.Time) (int, error) {
 	return 0, nil
 }
 func (r *zeroFulfillmentRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (r *zeroFulfillmentRepo) Restore(context.Context, uuid.UUID) error                { return nil }
+func (r *zeroFulfillmentRepo) Restore(context.Context, uuid.UUID) error               { return nil }
 func (r *zeroFulfillmentRepo) ListOverdue(context.Context) ([]domain.Fulfillment, error) {
 	return nil, nil
 }
 
-// stubShippingRepo tracks Create calls and can simulate existing/missing address.
+// stubShippingRepo tracks Create/Update calls and can simulate an existing or
+// missing address depending on what the test wants to exercise.
 type stubShippingRepo struct {
 	existing *domain.ShippingAddress
 	created  int
+	updated  int
+	lastSeen *domain.ShippingAddress
 }
 
 func (r *stubShippingRepo) Create(_ context.Context, _ pgx.Tx, addr *domain.ShippingAddress) (*domain.ShippingAddress, error) {
 	r.created++
 	addr.ID = uuid.New()
+	r.lastSeen = addr
 	return addr, nil
 }
 func (r *stubShippingRepo) CreateNoTx(_ context.Context, addr *domain.ShippingAddress) (*domain.ShippingAddress, error) {
@@ -152,7 +163,9 @@ func (r *stubShippingRepo) CreateNoTx(_ context.Context, addr *domain.ShippingAd
 func (r *stubShippingRepo) GetByFulfillmentID(_ context.Context, _ uuid.UUID) (*domain.ShippingAddress, error) {
 	return r.existing, nil
 }
-func (r *stubShippingRepo) Update(context.Context, pgx.Tx, *domain.ShippingAddress) error {
+func (r *stubShippingRepo) Update(_ context.Context, _ pgx.Tx, addr *domain.ShippingAddress) error {
+	r.updated++
+	r.lastSeen = addr
 	return nil
 }
 
@@ -335,25 +348,26 @@ func TestFulfillmentFilters_IncludeDeleted(t *testing.T) {
 	}
 }
 
-// ── Fix 8: QUEUED rows with elapsed next_retry_at must be retried ─────────────
+// ── Fix 8 / Finding #3: FAILED rows with elapsed next_retry_at are retried ──
 
-func TestRetryPending_QueuedRowsRetried(t *testing.T) {
-	// A QUEUED SMS send_log with a past next_retry_at should be picked up and
-	// re-queued (simulating the full lifecycle: Dispatch → retry loop).
+func TestRetryPending_FailedRowsRetried(t *testing.T) {
+	// A FAILED SMS send_log with a past next_retry_at should be re-queued.
 	smsID := uuid.New()
 	past := time.Now().UTC().Add(-5 * time.Minute)
+	firstFailed := past
 	sendRepo := &retryStubSendLog{
 		retryables: []domain.SendLog{
 			{
-				ID:           smsID,
-				Channel:      domain.ChannelSMS,
-				Status:       domain.SendQueued,
-				AttemptCount: 0,
-				NextRetryAt:  &past,
+				ID:            smsID,
+				Channel:       domain.ChannelSMS,
+				Status:        domain.SendFailed,
+				AttemptCount:  1, // one failure already
+				NextRetryAt:   &past,
+				FirstFailedAt: &firstFailed,
 			},
 		},
 	}
-	svc := NewMessagingService(&stubTemplateRepo{}, sendRepo, &stubNotificationRepo{})
+	svc := NewMessagingService(&stubTemplateRepo{}, sendRepo, &stubNotificationRepo{}, nil)
 	retried, err := svc.RetryPending(context.Background(), 3)
 	if err != nil {
 		t.Fatalf("RetryPending: %v", err)
@@ -362,37 +376,69 @@ func TestRetryPending_QueuedRowsRetried(t *testing.T) {
 		t.Fatalf("expected 1 retried, got %d", retried)
 	}
 	if sendRepo.updates[smsID] != domain.SendQueued {
-		t.Fatalf("sms should be re-queued, got %v", sendRepo.updates[smsID])
+		t.Fatalf("failed sms should be re-queued, got %v", sendRepo.updates[smsID])
 	}
 	if _, ok := sendRepo.nextRetry[smsID]; !ok {
-		t.Fatal("sms retry should update next_retry_at")
+		t.Fatal("re-queued sms should set next_retry_at")
 	}
 }
 
-func TestRetryPending_MaxAttemptsMarksFailed(t *testing.T) {
+func TestRetryPending_MaxAttemptsClears(t *testing.T) {
 	deadID := uuid.New()
 	past := time.Now().UTC().Add(-5 * time.Minute)
+	firstFailed := past
 	sendRepo := &retryStubSendLog{
 		retryables: []domain.SendLog{
 			{
-				ID:           deadID,
-				Channel:      domain.ChannelEmail,
-				Status:       domain.SendQueued,
-				AttemptCount: 3, // == maxAttempts
-				NextRetryAt:  &past,
+				ID:            deadID,
+				Channel:       domain.ChannelEmail,
+				Status:        domain.SendFailed,
+				AttemptCount:  3, // == maxAttempts
+				NextRetryAt:   &past,
+				FirstFailedAt: &firstFailed,
 			},
 		},
 	}
-	svc := NewMessagingService(&stubTemplateRepo{}, sendRepo, &stubNotificationRepo{})
+	svc := NewMessagingService(&stubTemplateRepo{}, sendRepo, &stubNotificationRepo{}, nil)
 	retried, err := svc.RetryPending(context.Background(), 3)
 	if err != nil {
 		t.Fatalf("RetryPending: %v", err)
 	}
-	// Terminal FAILED transitions are NOT counted as retried.
 	if retried != 0 {
 		t.Fatalf("expected 0 retried for terminal case, got %d", retried)
 	}
-	if sendRepo.updates[deadID] != domain.SendFailed {
-		t.Fatalf("over-attempt row should be marked FAILED, got %v", sendRepo.updates[deadID])
+	// Terminal: next_retry_at cleared so the retry job won't pick it up again.
+	if _, ok := sendRepo.nextRetry[deadID]; ok {
+		t.Fatal("over-attempt row should NOT have next_retry_at set after terminal")
+	}
+}
+
+func TestRetryPending_WindowExpiredClears(t *testing.T) {
+	id := uuid.New()
+	// First failure was 31 minutes ago — window has expired.
+	past := time.Now().UTC().Add(-5 * time.Minute)
+	firstFailed := time.Now().UTC().Add(-31 * time.Minute)
+	sendRepo := &retryStubSendLog{
+		retryables: []domain.SendLog{
+			{
+				ID:            id,
+				Channel:       domain.ChannelSMS,
+				Status:        domain.SendFailed,
+				AttemptCount:  1,
+				NextRetryAt:   &past,
+				FirstFailedAt: &firstFailed,
+			},
+		},
+	}
+	svc := NewMessagingService(&stubTemplateRepo{}, sendRepo, &stubNotificationRepo{}, nil)
+	retried, err := svc.RetryPending(context.Background(), 3)
+	if err != nil {
+		t.Fatalf("RetryPending: %v", err)
+	}
+	if retried != 0 {
+		t.Fatalf("expired window: expected 0 retried, got %d", retried)
+	}
+	if _, ok := sendRepo.nextRetry[id]; ok {
+		t.Fatal("expired-window row should have next_retry_at cleared")
 	}
 }

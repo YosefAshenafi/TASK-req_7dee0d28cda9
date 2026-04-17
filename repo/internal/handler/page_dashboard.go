@@ -33,15 +33,20 @@ func NewPageDashboardHandler(
 	}
 }
 
+// overdueExceptionAge defines when an OPEN exception counts as overdue — any
+// exception still open longer than this is surfaced on the dashboard so the
+// fulfillment team can intervene. Kept at 24h so "overdue" on the console
+// matches the operational SLA callout on exceptions day-to-day.
+const overdueExceptionAge = 24 * time.Hour
+
 func (h *PageDashboardHandler) Show(c *gin.Context) {
 	ctx := c.Request.Context()
 	pctx := pageCtx(c, h.store)
 
-	// "Today's pending" = fulfillments created today (UTC) that are still DRAFT
-	// or READY_TO_SHIP.
 	now := time.Now().UTC()
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
+	// Pending = today's fulfillments currently in DRAFT or READY_TO_SHIP.
 	_, pendingDraft, _ := h.fulfillRepo.List(ctx, repository.FulfillmentFilters{
 		Status:   domain.StatusDraft,
 		DateFrom: &startOfDay,
@@ -53,8 +58,12 @@ func (h *PageDashboardHandler) Show(c *gin.Context) {
 		DateTo:   &now,
 	}, domain.PageRequest{Page: 1, PageSize: 1})
 
+	// Overdue exceptions = OPEN exceptions whose created_at is older than the
+	// overdue threshold, not merely anything open.
+	overdueCutoff := now.Add(-overdueExceptionAge)
 	openExceptions, _ := h.exRepo.List(ctx, repository.ExceptionFilters{
-		Status: domain.ExceptionOpen,
+		Status:   domain.ExceptionOpen,
+		OpenedTo: &overdueCutoff,
 	})
 
 	tiers, _ := h.tierRepo.List(ctx, "", false)

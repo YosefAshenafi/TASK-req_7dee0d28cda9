@@ -114,12 +114,16 @@ func (f *fakeExportService) VerifyChecksum(context.Context, uuid.UUID) (bool, er
 	return true, nil
 }
 
+func (f *fakeExportService) Delete(_ context.Context, id uuid.UUID, _ uuid.UUID) error {
+	return f.err
+}
+
 type fakeMessagingService struct {
 	count int
 	err   error
 }
 
-func (f *fakeMessagingService) Dispatch(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, map[string]any) (*domain.SendLog, error) {
+func (f *fakeMessagingService) Dispatch(context.Context, uuid.UUID, uuid.UUID, []domain.SendLogChannel, map[string]any) (*domain.SendLog, error) {
 	return nil, nil
 }
 
@@ -178,6 +182,10 @@ func (f *fakeFulfillmentRepo) SoftDelete(context.Context, uuid.UUID, uuid.UUID) 
 }
 
 func (f *fakeFulfillmentRepo) Restore(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeFulfillmentRepo) BumpVersion(context.Context, pgx.Tx, uuid.UUID, int) error {
 	return nil
 }
 
@@ -344,16 +352,13 @@ func TestScheduledReportAndExportCleanupJobs(t *testing.T) {
 	}
 	reportRepo.expired = []domain.ReportExport{{ID: uuid.New(), FilePath: &filePath}}
 
-	cleanupJob := NewExportCleanupJob(reportRepo)
+	cleanupJob := NewExportCleanupJob(reportRepo, exportSvc)
 	removed, err := cleanupJob.Run(context.Background())
 	if err != nil {
 		t.Fatalf("ExportCleanupJob.Run() error = %v", err)
 	}
 	if removed != 1 {
 		t.Fatalf("removed = %d, want 1", removed)
-	}
-	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
-		t.Fatalf("expected export file to be deleted, stat err = %v", err)
 	}
 }
 

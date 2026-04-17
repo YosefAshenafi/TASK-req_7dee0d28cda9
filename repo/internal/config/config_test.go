@@ -21,7 +21,7 @@ func TestLoadUsesEnvAndDefaults(t *testing.T) {
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Fatalf("DatabaseURL = %q", cfg.DatabaseURL)
 	}
-	if cfg.EncryptionKeyPath != "/app/encryption.key" {
+	if cfg.EncryptionKeyPath != "/app/keystore/encryption.key" {
 		t.Fatalf("EncryptionKeyPath = %q", cfg.EncryptionKeyPath)
 	}
 	if cfg.Port != "8080" {

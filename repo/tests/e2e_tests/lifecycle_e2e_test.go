@@ -44,8 +44,16 @@ func TestPhysicalFulfillmentLifecycle(t *testing.T) {
 		t.Fatalf("inventory after create: want 4, got %d", inv)
 	}
 
-	// 4. DRAFT → READY_TO_SHIP.
-	rr = transition(t, ffID, map[string]any{"to_status": "READY_TO_SHIP"})
+	// 4. DRAFT → READY_TO_SHIP (shipping address required for PHYSICAL).
+	rr = transition(t, ffID, map[string]any{
+		"to_status": "READY_TO_SHIP",
+		"shipping_address": map[string]any{
+			"line_1":   "123 Main St",
+			"city":     "Springfield",
+			"state":    "MA",
+			"zip_code": "01101",
+		},
+	})
 	mustStatus(t, rr, http.StatusOK)
 
 	// 5. READY_TO_SHIP → SHIPPED (tracking required).

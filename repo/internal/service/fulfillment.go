@@ -92,6 +92,10 @@ type ShippingAddressInput struct {
 type FulfillmentService interface {
 	Create(ctx context.Context, input CreateFulfillmentInput) (*domain.Fulfillment, error)
 	Transition(ctx context.Context, input TransitionInput) (*domain.Fulfillment, error)
+	// UpdateShippingAddress maintains a physical fulfillment's shipping address
+	// out-of-band (no status transition). Used when an address is corrected after
+	// initial capture — e.g. zip typo discovered during carrier handoff.
+	UpdateShippingAddress(ctx context.Context, fulfillmentID uuid.UUID, expectedVersion int, addr *ShippingAddressEncrypted) error
 }
 
 type fulfillmentService struct {
@@ -273,20 +277,37 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 			f.ReadyAt = &now
 			if f.Type == domain.TypePhysical && s.shippingRepo != nil {
 				if input.ShippingAddr != nil {
-					// New address provided — validate and persist.
+					// New address provided — validate, then update existing or
+					// create if none. This supports both first-time transitions
+					// and maintenance (e.g. correcting an address after ON_HOLD).
 					if err := validateShippingAddress(input.ShippingAddr); err != nil {
 						return err
 					}
-					addr := &domain.ShippingAddress{
-						FulfillmentID:  f.ID,
-						Line1Encrypted: input.ShippingAddr.Line1Encrypted,
-						Line2Encrypted: input.ShippingAddr.Line2Encrypted,
-						City:           input.ShippingAddr.City,
-						State:          input.ShippingAddr.State,
-						ZipCode:        input.ShippingAddr.ZipCode,
+					existing, err := s.shippingRepo.GetByFulfillmentID(ctx, f.ID)
+					if err != nil {
+						return fmt.Errorf("checking existing shipping address: %w", err)
 					}
-					if _, err := s.shippingRepo.Create(ctx, tx, addr); err != nil {
-						return fmt.Errorf("persisting shipping address: %w", err)
+					if existing != nil {
+						existing.Line1Encrypted = input.ShippingAddr.Line1Encrypted
+						existing.Line2Encrypted = input.ShippingAddr.Line2Encrypted
+						existing.City = input.ShippingAddr.City
+						existing.State = input.ShippingAddr.State
+						existing.ZipCode = input.ShippingAddr.ZipCode
+						if err := s.shippingRepo.Update(ctx, tx, existing); err != nil {
+							return fmt.Errorf("updating shipping address: %w", err)
+						}
+					} else {
+						addr := &domain.ShippingAddress{
+							FulfillmentID:  f.ID,
+							Line1Encrypted: input.ShippingAddr.Line1Encrypted,
+							Line2Encrypted: input.ShippingAddr.Line2Encrypted,
+							City:           input.ShippingAddr.City,
+							State:          input.ShippingAddr.State,
+							ZipCode:        input.ShippingAddr.ZipCode,
+						}
+						if _, err := s.shippingRepo.Create(ctx, tx, addr); err != nil {
+							return fmt.Errorf("persisting shipping address: %w", err)
+						}
 					}
 				} else {
 					// No new address supplied — a pre-existing address (e.g. after
@@ -403,4 +424,81 @@ func (s *fulfillmentService) Transition(ctx context.Context, input TransitionInp
 	}
 
 	return updated, nil
+}
+
+// UpdateShippingAddress maintains a physical fulfillment's shipping address
+// without a status transition. It validates, either updates (if an address
+// exists) or creates (first capture), emits a timeline event, and writes audit.
+func (s *fulfillmentService) UpdateShippingAddress(ctx context.Context, fulfillmentID uuid.UUID, expectedVersion int, addr *ShippingAddressEncrypted) error {
+	if addr == nil {
+		return domain.NewValidationError("missing required field", map[string]string{
+			"shipping_address": "address payload is required",
+		})
+	}
+	if err := validateShippingAddress(addr); err != nil {
+		return err
+	}
+
+	actorID, _ := UserIDFromContext(ctx)
+
+	return s.txMgr.WithTx(ctx, func(tx pgx.Tx) error {
+		f, err := s.fulfillRepo.GetByIDForUpdate(ctx, tx, fulfillmentID)
+		if err != nil {
+			return err
+		}
+		if expectedVersion == 0 || expectedVersion != f.Version {
+			return domain.NewConflictError()
+		}
+		if f.Type != domain.TypePhysical {
+			return domain.NewValidationError("invalid operation", map[string]string{
+				"type": "only PHYSICAL fulfillments have shipping addresses",
+			})
+		}
+		// Once the package has left the warehouse, address edits must go through
+		// a carrier redirect — block on DELIVERED/COMPLETED to avoid drift with
+		// the carrier record.
+		if f.Status == domain.StatusDelivered || f.Status == domain.StatusCompleted {
+			return domain.NewValidationError("invalid transition", map[string]string{
+				"status": "cannot edit shipping address after DELIVERED",
+			})
+		}
+
+		existing, err := s.shippingRepo.GetByFulfillmentID(ctx, fulfillmentID)
+		if err != nil {
+			return fmt.Errorf("checking existing shipping address: %w", err)
+		}
+		if existing != nil {
+			existing.Line1Encrypted = addr.Line1Encrypted
+			existing.Line2Encrypted = addr.Line2Encrypted
+			existing.City = addr.City
+			existing.State = addr.State
+			existing.ZipCode = addr.ZipCode
+			if err := s.shippingRepo.Update(ctx, tx, existing); err != nil {
+				return fmt.Errorf("updating shipping address: %w", err)
+			}
+		} else {
+			created := &domain.ShippingAddress{
+				FulfillmentID:  fulfillmentID,
+				Line1Encrypted: addr.Line1Encrypted,
+				Line2Encrypted: addr.Line2Encrypted,
+				City:           addr.City,
+				State:          addr.State,
+				ZipCode:        addr.ZipCode,
+			}
+			if _, err := s.shippingRepo.Create(ctx, tx, created); err != nil {
+				return fmt.Errorf("creating shipping address: %w", err)
+			}
+		}
+
+		if s.auditSvc != nil {
+			_ = s.auditSvc.Log(ctx, "shipping_addresses", fulfillmentID, "UPDATE", nil, map[string]any{
+				"fulfillment_id": fulfillmentID,
+				"city":           addr.City,
+				"state":          addr.State,
+				"zip":            addr.ZipCode,
+				"actor_id":       actorID,
+			})
+		}
+		return s.fulfillRepo.BumpVersion(ctx, tx, fulfillmentID, expectedVersion)
+	})
 }

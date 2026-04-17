@@ -9,15 +9,16 @@ import (
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 type User struct {
-	ID           uuid.UUID  `db:"id"            json:"id"`
-	Username     string     `db:"username"      json:"username"`
-	Email        string     `db:"email"         json:"email"`
-	PasswordHash string     `db:"password_hash" json:"-"`
-	Role         UserRole   `db:"role"          json:"role"`
-	IsActive     bool       `db:"is_active"     json:"is_active"`
-	Version      int        `db:"version"       json:"version"`
-	CreatedAt    time.Time  `db:"created_at"    json:"created_at"`
-	UpdatedAt    time.Time  `db:"updated_at"    json:"updated_at"`
+	ID                 uuid.UUID  `db:"id"                   json:"id"`
+	Username           string     `db:"username"             json:"username"`
+	Email              string     `db:"email"                json:"email"`
+	PasswordHash       string     `db:"password_hash"        json:"-"`
+	Role               UserRole   `db:"role"                 json:"role"`
+	IsActive           bool       `db:"is_active"            json:"is_active"`
+	MustRotatePassword bool       `db:"must_rotate_password" json:"must_rotate_password"`
+	Version            int        `db:"version"              json:"version"`
+	CreatedAt          time.Time  `db:"created_at"           json:"created_at"`
+	UpdatedAt          time.Time  `db:"updated_at"           json:"updated_at"`
 }
 
 // ── Customers ─────────────────────────────────────────────────────────────────
@@ -200,19 +201,22 @@ type MessageTemplate struct {
 // ── Send Logs ─────────────────────────────────────────────────────────────────
 
 type SendLog struct {
-	ID           uuid.UUID      `db:"id"            json:"id"`
-	TemplateID   *uuid.UUID     `db:"template_id"   json:"template_id"`
-	RecipientID  uuid.UUID      `db:"recipient_id"  json:"recipient_id"`
-	Channel      SendLogChannel `db:"channel"       json:"channel"`
-	Status       SendLogStatus  `db:"status"        json:"status"`
-	AttemptCount int            `db:"attempt_count" json:"attempt_count"`
-	NextRetryAt  *time.Time     `db:"next_retry_at" json:"next_retry_at"`
-	PrintedBy    *uuid.UUID     `db:"printed_by"    json:"printed_by"`
-	PrintedAt    *time.Time     `db:"printed_at"    json:"printed_at"`
-	Context      []byte         `db:"context"       json:"context"`
-	ErrorMessage *string        `db:"error_message" json:"error_message"`
-	CreatedAt    time.Time      `db:"created_at"    json:"created_at"`
-	UpdatedAt    time.Time      `db:"updated_at"    json:"updated_at"`
+	ID            uuid.UUID      `db:"id"               json:"id"`
+	TemplateID    *uuid.UUID     `db:"template_id"      json:"template_id"`
+	RecipientID   uuid.UUID      `db:"recipient_id"     json:"recipient_id"`
+	RecipientType RecipientType  `db:"recipient_type"   json:"recipient_type"`
+	DispatchID    *uuid.UUID     `db:"dispatch_id"      json:"dispatch_id,omitempty"`
+	Channel       SendLogChannel `db:"channel"          json:"channel"`
+	Status        SendLogStatus  `db:"status"           json:"status"`
+	AttemptCount  int            `db:"attempt_count"    json:"attempt_count"`
+	NextRetryAt   *time.Time     `db:"next_retry_at"    json:"next_retry_at"`
+	FirstFailedAt *time.Time     `db:"first_failed_at"  json:"first_failed_at,omitempty"`
+	PrintedBy     *uuid.UUID     `db:"printed_by"       json:"printed_by"`
+	PrintedAt     *time.Time     `db:"printed_at"       json:"printed_at"`
+	Context       []byte         `db:"context"          json:"context"`
+	ErrorMessage  *string        `db:"error_message"    json:"error_message"`
+	CreatedAt     time.Time      `db:"created_at"       json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at"       json:"updated_at"`
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -275,6 +279,34 @@ type JobRunHistory struct {
 	RecordsProcessed int        `db:"records_processed" json:"records_processed"`
 	ErrorStack       *string    `db:"error_stack"       json:"error_stack"`
 	CreatedAt        time.Time  `db:"created_at"        json:"created_at"`
+}
+
+// ── Job Schedules ─────────────────────────────────────────────────────────────
+
+type JobSchedule struct {
+	ID              uuid.UUID  `db:"id"               json:"id"`
+	JobKey          string     `db:"job_key"          json:"job_key"`
+	IntervalSeconds *int       `db:"interval_seconds" json:"interval_seconds,omitempty"`
+	DailyHour       *int       `db:"daily_hour"       json:"daily_hour,omitempty"`
+	DailyMinute     *int       `db:"daily_minute"     json:"daily_minute,omitempty"`
+	Enabled         bool       `db:"enabled"          json:"enabled"`
+	UpdatedBy       *uuid.UUID `db:"updated_by"       json:"updated_by,omitempty"`
+	UpdatedAt       time.Time  `db:"updated_at"       json:"updated_at"`
+	Version         int        `db:"version"          json:"version"`
+}
+
+// ── DR Drills ─────────────────────────────────────────────────────────────────
+
+type DRDrill struct {
+	ID           uuid.UUID  `db:"id"            json:"id"`
+	ScheduledFor time.Time  `db:"scheduled_for" json:"scheduled_for"`
+	ExecutedAt   *time.Time `db:"executed_at"   json:"executed_at,omitempty"`
+	ExecutedBy   *uuid.UUID `db:"executed_by"   json:"executed_by,omitempty"`
+	Outcome      *string    `db:"outcome"       json:"outcome,omitempty"`
+	Notes        *string    `db:"notes"         json:"notes,omitempty"`
+	ArtifactPath *string    `db:"artifact_path" json:"artifact_path,omitempty"`
+	CreatedAt    time.Time  `db:"created_at"    json:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at"    json:"updated_at"`
 }
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────

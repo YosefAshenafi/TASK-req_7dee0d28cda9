@@ -51,6 +51,11 @@ type transitionShippingAddress struct {
 	ZipCode string `json:"zip_code"`
 }
 
+type updateShippingAddressRequest struct {
+	Version int `json:"version" binding:"required"`
+	transitionShippingAddress
+}
+
 type transitionRequest struct {
 	ToStatus          domain.FulfillmentStatus   `json:"to_status" binding:"required"`
 	Version           int                        `json:"version" binding:"required"`
@@ -289,6 +294,57 @@ func (h *FulfillmentHandler) SoftDelete(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// PUT /api/v1/fulfillments/:id/shipping-address — out-of-band maintenance of a
+// physical fulfillment's address (no status transition). Supports correcting an
+// address after initial capture without forcing an ON_HOLD/READY_TO_SHIP cycle.
+func (h *FulfillmentHandler) UpdateShippingAddress(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: "invalid fulfillment ID"})
+		return
+	}
+
+	var req updateShippingAddressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: err.Error()})
+		return
+	}
+
+	line1Enc, err := h.encSvc.EncryptString(req.Line1)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+		return
+	}
+	var line2Enc []byte
+	if req.Line2 != "" {
+		line2Enc, err = h.encSvc.EncryptString(req.Line2)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+			return
+		}
+	}
+
+	addr := &service.ShippingAddressEncrypted{
+		Line1Encrypted: line1Enc,
+		Line2Encrypted: line2Enc,
+		City:           req.City,
+		State:          req.State,
+		ZipCode:        req.ZipCode,
+	}
+
+	if err := h.fulfillSvc.UpdateShippingAddress(c.Request.Context(), id, req.Version, addr); err != nil {
+		middleware.DomainErrorToHTTP(c, err)
+		return
+	}
+
+	updated, err := h.fulfillRepo.GetByID(c.Request.Context(), id)
+	if err != nil {
+		middleware.DomainErrorToHTTP(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, h.toResponse(updated))
 }
 
 // POST /api/v1/fulfillments/:id/restore

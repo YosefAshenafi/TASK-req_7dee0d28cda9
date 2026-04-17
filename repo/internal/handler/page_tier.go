@@ -10,6 +10,7 @@ import (
 
 	"github.com/fulfillops/fulfillops/internal/domain"
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 	"github.com/fulfillops/fulfillops/internal/view"
 	tierview "github.com/fulfillops/fulfillops/internal/view/tiers"
 )
@@ -17,10 +18,16 @@ import (
 type PageTierHandler struct {
 	store    sessions.Store
 	tierRepo repository.TierRepository
+	auditSvc service.AuditService
 }
 
 func NewPageTierHandler(store sessions.Store, tierRepo repository.TierRepository) *PageTierHandler {
 	return &PageTierHandler{store: store, tierRepo: tierRepo}
+}
+
+func (h *PageTierHandler) WithAudit(auditSvc service.AuditService) *PageTierHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 func (h *PageTierHandler) List(c *gin.Context) {
@@ -35,8 +42,12 @@ func (h *PageTierHandler) List(c *gin.Context) {
 	total := len(tiers)
 	start := (page - 1) * size
 	end := start + size
-	if start > total { start = total }
-	if end > total { end = total }
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
 
 	renderPage(c, http.StatusOK, tierview.List(pageCtx(c, h.store), tierview.ListData{
 		Tiers:   tiers[start:end],
@@ -84,7 +95,7 @@ func (h *PageTierHandler) ShowEdit(c *gin.Context) {
 }
 
 func (h *PageTierHandler) PostCreate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	t := &domain.RewardTier{
 		Name:           c.PostForm("name"),
 		InventoryCount: formInt(c, "inventory_count"),
@@ -94,18 +105,23 @@ func (h *PageTierHandler) PostCreate(c *gin.Context) {
 	if d := c.PostForm("description"); d != "" {
 		t.Description = &d
 	}
-	if _, err := h.tierRepo.Create(ctx, t); err != nil {
+	created, err := h.tierRepo.Create(ctx, t)
+	if err != nil {
 		renderPage(c, http.StatusUnprocessableEntity, tierview.Form(pageCtx(c, h.store), tierview.FormData{
 			Errors: map[string]string{"name": err.Error()},
 		}))
 		return
 	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "reward_tiers", created.ID, "CREATE", nil, created)
+	}
 	redirectWithFlash(c, h.store, "/tiers", "success", "Tier created successfully.")
 }
 
 func (h *PageTierHandler) PostUpdate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
+	before, _ := h.tierRepo.GetByID(ctx, id)
 	t := &domain.RewardTier{
 		ID:             id,
 		Name:           c.PostForm("name"),
@@ -117,31 +133,44 @@ func (h *PageTierHandler) PostUpdate(c *gin.Context) {
 	if d := c.PostForm("description"); d != "" {
 		t.Description = &d
 	}
-	if _, err := h.tierRepo.Update(ctx, t); err != nil {
+	updated, err := h.tierRepo.Update(ctx, t)
+	if err != nil {
 		renderPage(c, http.StatusUnprocessableEntity, tierview.Form(pageCtx(c, h.store), tierview.FormData{
 			Tier:   t,
 			Errors: map[string]string{"name": err.Error()},
 		}))
 		return
 	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "reward_tiers", updated.ID, "UPDATE", before, updated)
+	}
 	redirectWithFlash(c, h.store, "/tiers/"+id.String(), "success", "Tier updated.")
 }
 
 func (h *PageTierHandler) PostDelete(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
+	before, _ := h.tierRepo.GetByID(ctx, id)
 	_ = h.tierRepo.SoftDelete(ctx, id, deletedBy)
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "reward_tiers", id, "DELETE", before, map[string]any{"deleted_by": deletedBy})
+	}
 	redirectWithFlash(c, h.store, "/tiers", "success", "Tier deleted.")
 }
 
 func (h *PageTierHandler) PostRestore(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	if err := h.tierRepo.Restore(ctx, id); err != nil {
 		redirectWithFlash(c, h.store, "/admin/recovery", "error", "Restore failed: "+err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		if restored, err := h.tierRepo.GetByID(ctx, id); err == nil {
+			_ = h.auditSvc.Log(ctx, "reward_tiers", id, "RESTORE", nil, restored)
+		}
 	}
 	redirectWithFlash(c, h.store, "/admin/recovery", "success", "Tier restored.")
 }
@@ -149,9 +178,13 @@ func (h *PageTierHandler) PostRestore(c *gin.Context) {
 // helpers
 func queryInt(c *gin.Context, key string, def int) int {
 	v := c.Query(key)
-	if v == "" { return def }
+	if v == "" {
+		return def
+	}
 	n, err := strconv.Atoi(v)
-	if err != nil { return def }
+	if err != nil {
+		return def
+	}
 	return n
 }
 

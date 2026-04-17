@@ -19,25 +19,33 @@ import (
 var svcPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
+	// When DATABASE_URL is unset, only the DB-backed tests in THIS file should
+	// be skipped — each one calls skipIfNoDB() and bails out early. We still
+	// want to run the internal-package unit tests (service/*_test.go in
+	// `package service`) which have no DB dependency.
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		fmt.Println("DATABASE_URL not set, skipping service tests")
-		os.Exit(0)
+	if dbURL != "" {
+		ctx := context.Background()
+		var err error
+		svcPool, err = pgxpool.New(ctx, dbURL)
+		if err != nil {
+			fmt.Printf("connecting: %v\n", err)
+			os.Exit(1)
+		}
+		if err := svcPool.Ping(ctx); err != nil {
+			fmt.Printf("ping: %v\n", err)
+			os.Exit(1)
+		}
+		defer svcPool.Close()
 	}
-	ctx := context.Background()
-	var err error
-	svcPool, err = pgxpool.New(ctx, dbURL)
-	if err != nil {
-		fmt.Printf("connecting: %v\n", err)
-		os.Exit(1)
+	os.Exit(m.Run())
+}
+
+func skipIfNoDB(t *testing.T) {
+	t.Helper()
+	if svcPool == nil {
+		t.Skip("DATABASE_URL not set — skipping DB-backed service test")
 	}
-	if err := svcPool.Ping(ctx); err != nil {
-		fmt.Printf("ping: %v\n", err)
-		os.Exit(1)
-	}
-	code := m.Run()
-	svcPool.Close()
-	os.Exit(code)
 }
 
 func adminUserID(t *testing.T) uuid.UUID {
@@ -68,6 +76,7 @@ func buildFulfillmentService(t *testing.T) service.FulfillmentService {
 // ── Transition Tests ──────────────────────────────────────────────────────────
 
 func TestFulfillmentAllTransitions(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -129,6 +138,7 @@ func TestFulfillmentAllTransitions(t *testing.T) {
 }
 
 func TestTransitionTerminalReturnsError(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -167,6 +177,7 @@ func TestTransitionTerminalReturnsError(t *testing.T) {
 }
 
 func TestTransitionShippedWithoutTracking(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -195,6 +206,7 @@ func TestTransitionShippedWithoutTracking(t *testing.T) {
 }
 
 func TestInventoryDecrementedOnCreate(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -220,6 +232,7 @@ func TestInventoryDecrementedOnCreate(t *testing.T) {
 }
 
 func TestInventoryRestoredOnCancel(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -252,6 +265,7 @@ func TestInventoryRestoredOnCancel(t *testing.T) {
 }
 
 func TestPurchaseLimitEnforced(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -283,6 +297,7 @@ func TestPurchaseLimitEnforced(t *testing.T) {
 }
 
 func TestCanceledNotCountedTowardLimit(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -319,6 +334,7 @@ func TestCanceledNotCountedTowardLimit(t *testing.T) {
 }
 
 func TestCreateWhenInventoryZero(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -339,6 +355,7 @@ func TestCreateWhenInventoryZero(t *testing.T) {
 }
 
 func TestStaleVersionConflict(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	ctx = service.WithUserID(ctx, adminUserID(t))
 	svc := buildFulfillmentService(t)
@@ -375,6 +392,7 @@ func TestStaleVersionConflict(t *testing.T) {
 // ── SLA Tests ─────────────────────────────────────────────────────────────────
 
 func TestSLAPhysical(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	settingRepo := repository.NewSystemSettingRepository(svcPool)
 	blackoutRepo := repository.NewBlackoutDateRepository(svcPool)
@@ -392,6 +410,7 @@ func TestSLAPhysical(t *testing.T) {
 }
 
 func TestSLAVoucher(t *testing.T) {
+	skipIfNoDB(t)
 	ctx := context.Background()
 	settingRepo := repository.NewSystemSettingRepository(svcPool)
 	blackoutRepo := repository.NewBlackoutDateRepository(svcPool)

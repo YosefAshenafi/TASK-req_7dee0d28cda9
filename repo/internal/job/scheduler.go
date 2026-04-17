@@ -31,11 +31,21 @@ type Scheduler struct {
 	jobRunRepo repository.JobRunRepository
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
+	tz         *time.Location // timezone for daily job scheduling (default UTC)
 }
 
 // NewScheduler creates a Scheduler backed by the given job run repository.
 func NewScheduler(jobRunRepo repository.JobRunRepository) *Scheduler {
-	return &Scheduler{jobRunRepo: jobRunRepo}
+	return &Scheduler{jobRunRepo: jobRunRepo, tz: time.UTC}
+}
+
+// WithTimezone sets the timezone used for daily job scheduling.
+// If loc is nil, UTC is used.
+func (s *Scheduler) WithTimezone(loc *time.Location) *Scheduler {
+	if loc != nil {
+		s.tz = loc
+	}
+	return s
 }
 
 // Register adds a job to be run every interval.
@@ -45,7 +55,8 @@ func (s *Scheduler) Register(name string, interval time.Duration, fn JobFunc) {
 	s.jobs = append(s.jobs, jobEntry{name: name, interval: interval, fn: fn})
 }
 
-// RegisterDaily adds a job to be run once per day at the given UTC wall-clock time.
+// RegisterDaily adds a job to be run once per day at the given wall-clock time
+// in the scheduler's configured timezone (default UTC).
 func (s *Scheduler) RegisterDaily(name string, hour, minute int, fn JobFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -100,16 +111,21 @@ func (s *Scheduler) runLoop(ctx context.Context, j jobEntry) {
 }
 
 func (s *Scheduler) runDailyLoop(ctx context.Context, j jobEntry) {
+	tz := s.tz
+	if tz == nil {
+		tz = time.UTC
+	}
 	for {
-		now := time.Now().UTC()
-		next := time.Date(now.Year(), now.Month(), now.Day(), j.hour, j.minute, 0, 0, time.UTC)
+		now := time.Now().In(tz)
+		next := time.Date(now.Year(), now.Month(), now.Day(), j.hour, j.minute, 0, 0, tz)
 		if !next.After(now) {
-			next = next.Add(24 * time.Hour)
+			// Advance by 24 hours and re-normalise to handle DST transitions.
+			next = time.Date(now.Year(), now.Month(), now.Day()+1, j.hour, j.minute, 0, 0, tz)
 		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(next.Sub(now)):
+		case <-time.After(time.Until(next)):
 			s.runOnce(ctx, j)
 		}
 	}

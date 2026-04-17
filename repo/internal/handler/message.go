@@ -19,6 +19,7 @@ type MessageHandler struct {
 	templateRepo repository.MessageTemplateRepository
 	sendLogRepo  repository.SendLogRepository
 	notifRepo    repository.NotificationRepository
+	auditSvc     service.AuditService
 }
 
 func NewMessageHandler(
@@ -26,12 +27,14 @@ func NewMessageHandler(
 	templateRepo repository.MessageTemplateRepository,
 	sendLogRepo repository.SendLogRepository,
 	notifRepo repository.NotificationRepository,
+	auditSvc service.AuditService,
 ) *MessageHandler {
 	return &MessageHandler{
 		messagingSvc: messagingSvc,
 		templateRepo: templateRepo,
 		sendLogRepo:  sendLogRepo,
 		notifRepo:    notifRepo,
+		auditSvc:     auditSvc,
 	}
 }
 
@@ -51,9 +54,10 @@ type updateTemplateRequest struct {
 }
 
 type dispatchRequest struct {
-	TemplateID  uuid.UUID      `json:"template_id" binding:"required"`
-	RecipientID uuid.UUID      `json:"recipient_id" binding:"required"`
-	Context     map[string]any `json:"context"`
+	TemplateID    uuid.UUID                `json:"template_id" binding:"required"`
+	RecipientID   uuid.UUID                `json:"recipient_id" binding:"required"`
+	ExtraChannels []domain.SendLogChannel  `json:"extra_channels"` // optional: SMS, EMAIL
+	Context       map[string]any           `json:"context"`
 }
 
 // GET /api/v1/message-templates
@@ -92,6 +96,10 @@ func (h *MessageHandler) CreateTemplate(c *gin.Context) {
 		return
 	}
 
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "message_templates", created.ID, "CREATE", nil, created)
+	}
+
 	c.JSON(http.StatusCreated, created)
 }
 
@@ -126,6 +134,8 @@ func (h *MessageHandler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 
+	before, _ := h.templateRepo.GetByID(c.Request.Context(), id)
+
 	tmpl := &domain.MessageTemplate{
 		ID:           id,
 		Name:         req.Name,
@@ -139,6 +149,10 @@ func (h *MessageHandler) UpdateTemplate(c *gin.Context) {
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "message_templates", id, "UPDATE", before, updated)
 	}
 
 	c.JSON(http.StatusOK, updated)
@@ -155,9 +169,15 @@ func (h *MessageHandler) DeleteTemplate(c *gin.Context) {
 	actorID, _ := c.Get("userID")
 	deletedBy, _ := actorID.(uuid.UUID)
 
+	before, _ := h.templateRepo.GetByID(c.Request.Context(), id)
+
 	if err := h.templateRepo.SoftDelete(c.Request.Context(), id, deletedBy); err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "message_templates", id, "DELETE", before, map[string]any{"deleted_by": deletedBy})
 	}
 
 	c.Status(http.StatusNoContent)
@@ -275,9 +295,7 @@ func (h *MessageHandler) Dispatch(c *gin.Context) {
 		req.Context = map[string]any{}
 	}
 
-	actorRaw, _ := c.Get("userID")
-	callerID, _ := actorRaw.(uuid.UUID)
-	log, err := h.messagingSvc.Dispatch(c.Request.Context(), req.TemplateID, callerID, req.RecipientID, req.Context)
+	log, err := h.messagingSvc.Dispatch(c.Request.Context(), req.TemplateID, req.RecipientID, req.ExtraChannels, req.Context)
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return

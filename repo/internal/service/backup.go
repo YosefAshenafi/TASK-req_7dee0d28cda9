@@ -1,8 +1,11 @@
 package service
 
 import (
+	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -16,7 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// BackupEntry describes a single pg_dump backup file.
+// BackupEntry describes a single backup archive.
 type BackupEntry struct {
 	ID        string    // base filename without extension
 	FilePath  string
@@ -25,83 +28,155 @@ type BackupEntry struct {
 	Status    string // "COMPLETED" or "FAILED"
 }
 
-// BackupService creates and restores PostgreSQL database backups via pg_dump.
+// BackupService creates and restores PostgreSQL database backups (plus optional
+// attached assets) bundled as a tar.gz archive with a sha256 checksum file.
 type BackupService interface {
-	// RunBackup creates a gzipped pg_dump in the backup directory.
+	// RunBackup creates a tar.gz containing the DB dump and asset directory.
 	RunBackup(ctx context.Context) (*BackupEntry, error)
 
 	// ListBackups returns all backup entries sorted by newest first.
 	ListBackups(ctx context.Context) ([]BackupEntry, error)
 
-	// RestoreFromBackup restores the database from a named backup file.
-	// verifyIntegrity performs a basic FK / row count sanity check after restore.
+	// RestoreFromBackup restores the database (and assets if present) from a
+	// named backup archive. verifyIntegrity performs a FK / row-count check.
 	RestoreFromBackup(ctx context.Context, backupID string, verifyIntegrity bool) error
 }
 
 type backupService struct {
 	databaseURL string
 	backupDir   string
+	assetsDir   string
 	auditSvc    AuditService
 }
 
-func NewBackupService(databaseURL, backupDir string, auditSvc AuditService) BackupService {
-	return &backupService{databaseURL: databaseURL, backupDir: backupDir, auditSvc: auditSvc}
+func NewBackupService(databaseURL, backupDir, assetsDir string, auditSvc AuditService) BackupService {
+	return &backupService{
+		databaseURL: databaseURL,
+		backupDir:   backupDir,
+		assetsDir:   assetsDir,
+		auditSvc:    auditSvc,
+	}
 }
 
-// RunBackup runs pg_dump and writes a gzipped SQL file.
+// RunBackup creates a tar.gz bundling db.sql.gz (pg_dump) and any assets.
+// A sha256 checksum file is written alongside the archive.
 func (s *backupService) RunBackup(ctx context.Context) (*BackupEntry, error) {
 	ts := time.Now().UTC()
 	id := fmt.Sprintf("backup_%s", ts.Format("20060102_150405"))
-	filePath := filepath.Join(s.backupDir, id+".sql.gz")
+	archivePath := filepath.Join(s.backupDir, id+".tar.gz")
+	checksumPath := archivePath + ".sha256"
 
-	// Open output file.
-	f, err := os.Create(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("creating backup file: %w", err)
+	if err := os.MkdirAll(s.backupDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating backup dir: %w", err)
 	}
-	defer f.Close()
 
-	// Pipe pg_dump stdout through gzip into the file.
-	gz := gzip.NewWriter(f)
-	defer gz.Close()
+	f, err := os.Create(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("creating archive file: %w", err)
+	}
 
-	// --clean --if-exists: emit DROP TABLE IF EXISTS before CREATE TABLE so that
-	// a subsequent psql restore cleanly replaces existing data.
+	h := sha256.New()
+	mw := io.MultiWriter(f, h)
+
+	gz := gzip.NewWriter(mw)
+	tw := tar.NewWriter(gz)
+
+	// Dump the database into a temporary file first (pg_dump → temp gzip).
+	tmpDump, err := os.CreateTemp("", "fulfillops_dump_*.sql.gz")
+	if err != nil {
+		f.Close()
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("creating temp dump file: %w", err)
+	}
+	tmpDumpPath := tmpDump.Name()
+	defer os.Remove(tmpDumpPath)
+
+	dumpGz := gzip.NewWriter(tmpDump)
 	cmd := exec.CommandContext(ctx, "pg_dump", "--no-password", "--clean", "--if-exists", s.databaseURL)
-	cmd.Stdout = gz
+	cmd.Stdout = dumpGz
 	cmd.Stderr = os.Stderr
-
 	if err := cmd.Run(); err != nil {
-		_ = os.Remove(filePath)
+		tmpDump.Close()
+		f.Close()
+		_ = os.Remove(archivePath)
 		return nil, fmt.Errorf("pg_dump failed: %w", err)
 	}
+	if err := dumpGz.Close(); err != nil {
+		tmpDump.Close()
+		f.Close()
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("closing dump gzip: %w", err)
+	}
+	if err := tmpDump.Close(); err != nil {
+		f.Close()
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("closing temp dump: %w", err)
+	}
 
-	// Flush gzip before stat.
+	// Add db.sql.gz to the archive.
+	if err := addFileToTar(tw, tmpDumpPath, "db.sql.gz"); err != nil {
+		f.Close()
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("adding db dump to archive: %w", err)
+	}
+
+	// Add assets directory if it exists and is non-empty.
+	if s.assetsDir != "" {
+		if info, statErr := os.Stat(s.assetsDir); statErr == nil && info.IsDir() {
+			if err := addDirToTar(tw, s.assetsDir, "assets"); err != nil {
+				log.Printf("backup: adding assets dir: %v", err)
+				// Non-fatal — continue without assets.
+			}
+		}
+	}
+
+	if err := tw.Close(); err != nil {
+		f.Close()
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("closing tar writer: %w", err)
+	}
 	if err := gz.Close(); err != nil {
+		f.Close()
+		_ = os.Remove(archivePath)
 		return nil, fmt.Errorf("closing gzip writer: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		return nil, fmt.Errorf("closing file: %w", err)
+		_ = os.Remove(archivePath)
+		return nil, fmt.Errorf("closing archive file: %w", err)
 	}
 
-	info, err := os.Stat(filePath)
+	checksum := hex.EncodeToString(h.Sum(nil))
+	if err := os.WriteFile(checksumPath, []byte(checksum+"\n"), 0644); err != nil {
+		log.Printf("backup: writing checksum file: %v", err)
+	}
+
+	info, err := os.Stat(archivePath)
 	if err != nil {
-		return nil, fmt.Errorf("stating backup file: %w", err)
+		return nil, fmt.Errorf("stating archive: %w", err)
 	}
 
 	entry := &BackupEntry{
 		ID:        id,
-		FilePath:  filePath,
+		FilePath:  archivePath,
 		CreatedAt: ts,
 		FileSize:  info.Size(),
 		Status:    "COMPLETED",
 	}
 
-	log.Printf("backup: created %s (%d bytes)", filePath, info.Size())
+	log.Printf("backup: created %s (%d bytes, sha256=%s)", archivePath, info.Size(), checksum)
+
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(context.Background(), "backups", uuid.Nil, "BACKUP_RUN", nil, map[string]any{
+			"backup_id": id,
+			"file_size": info.Size(),
+			"checksum":  checksum,
+		})
+	}
+
 	return entry, nil
 }
 
-// ListBackups scans the backup directory for .sql.gz files.
+// ListBackups scans the backup directory for .tar.gz files (and legacy .sql.gz).
 func (s *backupService) ListBackups(ctx context.Context) ([]BackupEntry, error) {
 	entries, err := os.ReadDir(s.backupDir)
 	if err != nil {
@@ -113,43 +188,151 @@ func (s *backupService) ListBackups(ctx context.Context) ([]BackupEntry, error) 
 
 	var result []BackupEntry
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql.gz") {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		var id string
+		switch {
+		case strings.HasSuffix(name, ".tar.gz"):
+			id = strings.TrimSuffix(name, ".tar.gz")
+		case strings.HasSuffix(name, ".sql.gz"):
+			id = strings.TrimSuffix(name, ".sql.gz")
+		default:
+			continue
+		}
+		if strings.HasSuffix(id, "backup_") {
 			continue
 		}
 		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-		name := strings.TrimSuffix(e.Name(), ".sql.gz")
 		result = append(result, BackupEntry{
-			ID:        name,
-			FilePath:  filepath.Join(s.backupDir, e.Name()),
+			ID:        id,
+			FilePath:  filepath.Join(s.backupDir, name),
 			CreatedAt: info.ModTime().UTC(),
 			FileSize:  info.Size(),
 			Status:    "COMPLETED",
 		})
 	}
 
-	// Newest first.
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].CreatedAt.After(result[j].CreatedAt)
 	})
 	return result, nil
 }
 
-// RestoreFromBackup pipes the gzipped backup through gunzip then psql.
-// Integrity verification is always executed unless verifyIntegrity is explicitly
-// false (fail-safe default) — a failed integrity check rolls the call back
-// with an error instead of reporting success.
+// RestoreFromBackup unpacks a .tar.gz archive, restores the DB dump, and
+// optionally restores the assets directory via atomic staged swap.
 func (s *backupService) RestoreFromBackup(ctx context.Context, backupID string, verifyIntegrity bool) error {
-	filePath := filepath.Join(s.backupDir, backupID+".sql.gz")
-	if _, err := os.Stat(filePath); err != nil {
-		return fmt.Errorf("backup file not found: %s", backupID)
+	// Support both new (.tar.gz) and legacy (.sql.gz) formats.
+	tarPath := filepath.Join(s.backupDir, backupID+".tar.gz")
+	legacyPath := filepath.Join(s.backupDir, backupID+".sql.gz")
+
+	if _, err := os.Stat(tarPath); err == nil {
+		return s.restoreFromTarGz(ctx, tarPath, backupID, verifyIntegrity)
+	}
+	if _, err := os.Stat(legacyPath); err == nil {
+		return s.restoreFromLegacySqlGz(ctx, legacyPath, backupID, verifyIntegrity)
+	}
+	return fmt.Errorf("backup file not found: %s", backupID)
+}
+
+func (s *backupService) restoreFromTarGz(ctx context.Context, archivePath, backupID string, verifyIntegrity bool) error {
+	// Verify checksum if a .sha256 file exists alongside the archive.
+	checksumPath := archivePath + ".sha256"
+	if storedChecksum, err := os.ReadFile(checksumPath); err == nil {
+		actual, err := fileChecksum(archivePath)
+		if err != nil {
+			return fmt.Errorf("computing archive checksum: %w", err)
+		}
+		if actual != strings.TrimSpace(string(storedChecksum)) {
+			return fmt.Errorf("archive checksum mismatch: stored=%s actual=%s", strings.TrimSpace(string(storedChecksum)), actual)
+		}
 	}
 
+	// Unpack into a temp directory.
+	tmpDir, err := os.MkdirTemp("", "fulfillops_restore_*")
+	if err != nil {
+		return fmt.Errorf("creating restore temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := extractTarGz(archivePath, tmpDir); err != nil {
+		return fmt.Errorf("extracting archive: %w", err)
+	}
+
+	// Restore the database dump.
+	dbDumpPath := filepath.Join(tmpDir, "db.sql.gz")
+	if err := s.restoreDBFromSqlGz(ctx, dbDumpPath); err != nil {
+		return fmt.Errorf("restoring database: %w", err)
+	}
+
+	log.Printf("backup: restored DB from %s", archivePath)
+
+	// Restore assets atomically (staged → swap).
+	srcAssets := filepath.Join(tmpDir, "assets")
+	if s.assetsDir != "" {
+		if _, err := os.Stat(srcAssets); err == nil {
+			staged := s.assetsDir + ".restore_stage"
+			if err := copyDir(srcAssets, staged); err != nil {
+				log.Printf("backup: staging assets failed: %v", err)
+			} else {
+				backup := s.assetsDir + ".pre_restore"
+				_ = os.Rename(s.assetsDir, backup)
+				if err := os.Rename(staged, s.assetsDir); err != nil {
+					_ = os.Rename(backup, s.assetsDir) // rollback
+					log.Printf("backup: swapping assets failed: %v", err)
+				} else {
+					os.RemoveAll(backup)
+					log.Printf("backup: restored assets to %s", s.assetsDir)
+				}
+			}
+		}
+	}
+
+	if verifyIntegrity {
+		if err := s.verifyIntegrity(ctx); err != nil {
+			log.Printf("backup: integrity check failed after restore: %v", err)
+			return fmt.Errorf("integrity check after restore: %w", err)
+		}
+		log.Printf("backup: integrity check passed")
+	}
+
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(context.Background(), "backups", uuid.Nil, "RESTORE", nil, map[string]string{
+			"backup_id": backupID,
+			"verified":  fmt.Sprintf("%v", verifyIntegrity),
+		})
+	}
+	return nil
+}
+
+func (s *backupService) restoreFromLegacySqlGz(ctx context.Context, filePath, backupID string, verifyIntegrity bool) error {
+	if err := s.restoreDBFromSqlGz(ctx, filePath); err != nil {
+		return err
+	}
+	log.Printf("backup: restored from legacy %s", filePath)
+
+	if verifyIntegrity {
+		if err := s.verifyIntegrity(ctx); err != nil {
+			return fmt.Errorf("integrity check after restore: %w", err)
+		}
+	}
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(context.Background(), "backups", uuid.Nil, "RESTORE", nil, map[string]string{
+			"backup_id": backupID,
+			"verified":  fmt.Sprintf("%v", verifyIntegrity),
+		})
+	}
+	return nil
+}
+
+func (s *backupService) restoreDBFromSqlGz(ctx context.Context, filePath string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("opening backup file: %w", err)
+		return fmt.Errorf("opening dump file: %w", err)
 	}
 	defer f.Close()
 
@@ -159,7 +342,6 @@ func (s *backupService) RestoreFromBackup(ctx context.Context, backupID string, 
 	}
 	defer gz.Close()
 
-	// Pipe decompressed SQL into psql.
 	cmd := exec.CommandContext(ctx, "psql", "--no-password", s.databaseURL)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -177,40 +359,12 @@ func (s *backupService) RestoreFromBackup(ctx context.Context, backupID string, 
 	waitErr := cmd.Wait()
 
 	if copyErr != nil {
-		return fmt.Errorf("copying backup to psql: %w", copyErr)
+		return fmt.Errorf("copying dump to psql: %w", copyErr)
 	}
-	if waitErr != nil {
-		return fmt.Errorf("psql restore failed: %w", waitErr)
-	}
-
-	log.Printf("backup: restored from %s", filePath)
-
-	// Fail-safe: always attempt integrity verification unless explicitly disabled.
-	if verifyIntegrity {
-		if err := s.verifyIntegrity(ctx); err != nil {
-			log.Printf("backup: integrity check failed after restore: %v", err)
-			return fmt.Errorf("integrity check after restore: %w", err)
-		}
-		log.Printf("backup: integrity check passed")
-
-		// Audit the successful restore (append-only).
-		if s.auditSvc != nil {
-			_ = s.auditSvc.Log(ctx, "backups", uuid.Nil, "RESTORE", nil, map[string]string{
-				"backup_id": backupID,
-				"verified":  "true",
-			})
-		}
-	}
-
-	return nil
+	return waitErr
 }
 
-// verifyIntegrity performs a substantive post-restore integrity check:
-//  1. Confirm no invalidated FK constraints remain.
-//  2. Walk every foreign key and raise if any dangling references exist.
-//  3. Confirm core tables are present and queryable.
-// Any failure aborts with a non-nil error so the caller treats the restore as
-// unsafe.
+// verifyIntegrity performs post-restore FK and table sanity checks.
 func (s *backupService) verifyIntegrity(ctx context.Context) error {
 	query := `
 DO $$
@@ -266,4 +420,138 @@ END $$;
 		return fmt.Errorf("FK integrity check: %w", err)
 	}
 	return nil
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+func addFileToTar(tw *tar.Writer, srcPath, destName string) error {
+	f, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	hdr := &tar.Header{
+		Name:    destName,
+		Mode:    0644,
+		Size:    info.Size(),
+		ModTime: info.ModTime(),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+	_, err = io.Copy(tw, f)
+	return err
+}
+
+func addDirToTar(tw *tar.Writer, srcDir, prefix string) error {
+	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		destName := filepath.Join(prefix, rel)
+		if info.IsDir() {
+			return tw.WriteHeader(&tar.Header{
+				Name:     destName + "/",
+				Typeflag: tar.TypeDir,
+				Mode:     0755,
+				ModTime:  info.ModTime(),
+			})
+		}
+		return addFileToTar(tw, path, destName)
+	})
+}
+
+func extractTarGz(archivePath, destDir string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gz.Close()
+
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(destDir, filepath.Clean("/"+hdr.Name))
+		if hdr.Typeflag == tar.TypeDir {
+			if err := os.MkdirAll(dest, 0755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return err
+		}
+		out, err := os.Create(dest)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(out, tr); err != nil {
+			out.Close()
+			return err
+		}
+		out.Close()
+	}
+	return nil
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, path)
+		dest := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(dest, info.Mode())
+		}
+		return copyFile(path, dest)
+	})
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func fileChecksum(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

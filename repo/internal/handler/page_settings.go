@@ -13,6 +13,7 @@ import (
 
 	"github.com/fulfillops/fulfillops/internal/domain"
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 	sview "github.com/fulfillops/fulfillops/internal/view/settings"
 )
 
@@ -20,6 +21,7 @@ type PageSettingsHandler struct {
 	store        sessions.Store
 	settingRepo  repository.SystemSettingRepository
 	blackoutRepo repository.BlackoutDateRepository
+	auditSvc     service.AuditService
 }
 
 func NewPageSettingsHandler(
@@ -28,6 +30,11 @@ func NewPageSettingsHandler(
 	blackoutRepo repository.BlackoutDateRepository,
 ) *PageSettingsHandler {
 	return &PageSettingsHandler{store: store, settingRepo: settingRepo, blackoutRepo: blackoutRepo}
+}
+
+func (h *PageSettingsHandler) WithAudit(auditSvc service.AuditService) *PageSettingsHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 func (h *PageSettingsHandler) ShowBusinessHours(c *gin.Context) {
@@ -51,9 +58,15 @@ func (h *PageSettingsHandler) ShowBusinessHours(c *gin.Context) {
 }
 
 func (h *PageSettingsHandler) PostBusinessHours(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	userID, _ := uuid.Parse(sess.Values["userID"].(string))
+	before := map[string]string{
+		"business_hours_start": settingStr(ctx, h.settingRepo, "business_hours_start", `"08:00"`),
+		"business_hours_end":   settingStr(ctx, h.settingRepo, "business_hours_end", `"18:00"`),
+		"timezone":             settingStr(ctx, h.settingRepo, "timezone", `"America/New_York"`),
+		"business_days":        settingStr(ctx, h.settingRepo, "business_days", "[1,2,3,4,5]"),
+	}
 
 	dayValues := c.PostFormArray("business_days")
 	days := make([]int, 0, len(dayValues))
@@ -68,6 +81,14 @@ func (h *PageSettingsHandler) PostBusinessHours(c *gin.Context) {
 	_ = h.settingRepo.Set(ctx, "business_hours_end", []byte(`"`+c.PostForm("end")+`"`), &userID)
 	_ = h.settingRepo.Set(ctx, "timezone", []byte(`"`+c.PostForm("timezone")+`"`), &userID)
 	_ = h.settingRepo.Set(ctx, "business_days", daysJSON, &userID)
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "system_settings", uuid.Nil, "UPDATE", before, map[string]any{
+			"business_hours_start": c.PostForm("start"),
+			"business_hours_end":   c.PostForm("end"),
+			"timezone":             c.PostForm("timezone"),
+			"business_days":        days,
+		})
+	}
 
 	redirectWithFlash(c, h.store, "/settings", "success", "Business hours saved.")
 }
@@ -79,7 +100,7 @@ func (h *PageSettingsHandler) ShowBlackoutDates(c *gin.Context) {
 }
 
 func (h *PageSettingsHandler) PostCreateBlackoutDate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	userID, _ := uuid.Parse(sess.Values["userID"].(string))
 
@@ -92,17 +113,24 @@ func (h *PageSettingsHandler) PostCreateBlackoutDate(c *gin.Context) {
 	if desc := c.PostForm("description"); desc != "" {
 		bd.Description = &desc
 	}
-	if _, err := h.blackoutRepo.Create(ctx, bd); err != nil {
+	created, err := h.blackoutRepo.Create(ctx, bd)
+	if err != nil {
 		redirectWithFlash(c, h.store, "/settings/blackout-dates", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "blackout_dates", created.ID, "CREATE", nil, created)
 	}
 	redirectWithFlash(c, h.store, "/settings/blackout-dates", "success", "Blackout date added.")
 }
 
 func (h *PageSettingsHandler) PostDeleteBlackoutDate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	_ = h.blackoutRepo.Delete(ctx, id)
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "blackout_dates", id, "DELETE", map[string]any{"id": id}, nil)
+	}
 	redirectWithFlash(c, h.store, "/settings/blackout-dates", "success", "Blackout date removed.")
 }
 

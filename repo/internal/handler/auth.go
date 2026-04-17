@@ -46,6 +46,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Also set the page cookie so API login also authenticates the browser UI.
+	pageSess, err := h.store.Get(c.Request, middleware.PageSessionName)
+	if err == nil {
+		pageSess.Values["userID"] = user.ID.String()
+		pageSess.Values["username"] = user.Username
+		pageSess.Values["userRole"] = string(user.Role)
+		_ = pageSess.Save(c.Request, c.Writer)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":       user.ID,
 		"username": user.Username,
@@ -70,11 +79,9 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	})
 }
 
-// POST /api/v1/auth/logout
+// POST /api/v1/auth/logout — clears BOTH the API and page session cookies so
+// logging out of one surface also revokes the other.
 func (h *AuthHandler) Logout(c *gin.Context) {
-	if err := middleware.ClearSession(c, h.store); err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR"})
-		return
-	}
+	middleware.ClearAllSessions(c, h.store)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }

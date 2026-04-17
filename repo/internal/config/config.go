@@ -8,15 +8,19 @@ import (
 )
 
 type Config struct {
-	DatabaseURL        string `env:"DATABASE_URL,required"`
-	EncryptionKeyPath  string `env:"FULFILLOPS_ENCRYPTION_KEY_PATH" envDefault:"/app/encryption.key"`
-	ExportDir          string `env:"FULFILLOPS_EXPORT_DIR" envDefault:"/app/exports"`
-	BackupDir          string `env:"FULFILLOPS_BACKUP_DIR" envDefault:"/app/backups"`
-	MigrationsPath     string `env:"FULFILLOPS_MIGRATIONS_PATH" envDefault:"/app/migrations"`
-	Port               string `env:"FULFILLOPS_PORT" envDefault:"8080"`
-	SessionSecret      string `env:"FULFILLOPS_SESSION_SECRET" envDefault:"change-me-in-production-32bytes!"`
-	GinMode            string `env:"GIN_MODE" envDefault:"debug"`
-	SecureCookies      bool   `env:"FULFILLOPS_SECURE_COOKIES" envDefault:"true"`
+	DatabaseURL             string `env:"DATABASE_URL,required"`
+	EncryptionKeyPath       string `env:"FULFILLOPS_ENCRYPTION_KEY_PATH" envDefault:"/app/keystore/encryption.key"`
+	ExportDir               string `env:"FULFILLOPS_EXPORT_DIR" envDefault:"/app/exports"`
+	BackupDir               string `env:"FULFILLOPS_BACKUP_DIR" envDefault:"/app/backups"`
+	AssetsDir               string `env:"FULFILLOPS_ASSETS_DIR" envDefault:"/app/assets"`
+	MigrationsPath          string `env:"FULFILLOPS_MIGRATIONS_PATH" envDefault:"/app/migrations"`
+	Port                    string `env:"FULFILLOPS_PORT" envDefault:"8080"`
+	SessionSecret           string `env:"FULFILLOPS_SESSION_SECRET" envDefault:"change-me-in-production-32bytes!"`
+	GinMode                 string `env:"GIN_MODE" envDefault:"debug"`
+	SecureCookies           bool   `env:"FULFILLOPS_SECURE_COOKIES" envDefault:"true"`
+	BootstrapAdminEmail     string `env:"FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL" envDefault:""`
+	BootstrapAdminPassword  string `env:"FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD" envDefault:""`
+	SchedulerTimezone       string `env:"FULFILLOPS_SCHEDULER_TZ" envDefault:""`
 }
 
 func Load() (*Config, error) {

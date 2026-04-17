@@ -39,11 +39,11 @@ type createCustomerRequest struct {
 }
 
 type updateCustomerRequest struct {
-	Name    string `json:"name" binding:"required"`
-	Phone   string `json:"phone"`
-	Email   string `json:"email"`
-	Address string `json:"address"`
-	Version int    `json:"version" binding:"required"`
+	Name    string  `json:"name" binding:"required"`
+	Phone   *string `json:"phone"`
+	Email   *string `json:"email"`
+	Address *string `json:"address"`
+	Version int     `json:"version" binding:"required"`
 }
 
 func (h *CustomerHandler) toResponse(c *domain.Customer) *domain.CustomerResponse {
@@ -170,7 +170,9 @@ func (h *CustomerHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, h.toResponse(customer))
 }
 
-// PUT /api/v1/customers/:id
+// PUT /api/v1/customers/:id — partial update. Encrypted fields are only
+// touched when the caller explicitly sends a value: a nil/missing JSON field
+// preserves the stored ciphertext; an empty-string value explicitly clears it.
 func (h *CustomerHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -184,39 +186,59 @@ func (h *CustomerHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Load existing so we preserve encrypted fields the caller did not send.
+	before, err := h.customerRepo.GetByID(c.Request.Context(), id)
+	if err != nil {
+		middleware.DomainErrorToHTTP(c, err)
+		return
+	}
+
 	customer := &domain.Customer{
-		ID:      id,
-		Name:    req.Name,
-		Version: req.Version,
+		ID:               id,
+		Name:             req.Name,
+		Version:          req.Version,
+		PhoneEncrypted:   before.PhoneEncrypted,
+		EmailEncrypted:   before.EmailEncrypted,
+		AddressEncrypted: before.AddressEncrypted,
 	}
 
-	if req.Phone != "" {
-		enc, err := h.encSvc.EncryptString(req.Phone)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
-			return
+	if req.Phone != nil {
+		if *req.Phone == "" {
+			customer.PhoneEncrypted = nil
+		} else {
+			enc, encErr := h.encSvc.EncryptString(*req.Phone)
+			if encErr != nil {
+				c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+				return
+			}
+			customer.PhoneEncrypted = enc
 		}
-		customer.PhoneEncrypted = enc
 	}
-	if req.Email != "" {
-		enc, err := h.encSvc.EncryptString(req.Email)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
-			return
+	if req.Email != nil {
+		if *req.Email == "" {
+			customer.EmailEncrypted = nil
+		} else {
+			enc, encErr := h.encSvc.EncryptString(*req.Email)
+			if encErr != nil {
+				c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+				return
+			}
+			customer.EmailEncrypted = enc
 		}
-		customer.EmailEncrypted = enc
 	}
-	if req.Address != "" {
-		enc, err := h.encSvc.EncryptString(req.Address)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
-			return
+	if req.Address != nil {
+		if *req.Address == "" {
+			customer.AddressEncrypted = nil
+		} else {
+			enc, encErr := h.encSvc.EncryptString(*req.Address)
+			if encErr != nil {
+				c.JSON(http.StatusInternalServerError, middleware.ErrorResponse{Code: "INTERNAL_ERROR", Message: "encryption error"})
+				return
+			}
+			customer.AddressEncrypted = enc
 		}
-		customer.AddressEncrypted = enc
 	}
 
-	// Preload the existing record for audit "before" state.
-	before, _ := h.customerRepo.GetByID(c.Request.Context(), id)
 	updated, err := h.customerRepo.Update(c.Request.Context(), customer)
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)

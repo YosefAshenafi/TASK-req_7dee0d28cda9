@@ -32,6 +32,14 @@ type createExportRequest struct {
 	IncludeSensitive bool           `json:"include_sensitive"`
 }
 
+// supportedReportTypes matches the ExportService.GenerateExport switch so
+// callers get immediate feedback on unknown types instead of an async failure.
+var supportedReportTypes = map[string]struct{}{
+	"fulfillments": {},
+	"customers":    {},
+	"audit":        {},
+}
+
 // GET /api/v1/reports/exports
 func (h *ReportHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -72,6 +80,17 @@ func (h *ReportHandler) Create(c *gin.Context) {
 	var req createExportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: err.Error()})
+		return
+	}
+
+	if _, ok := supportedReportTypes[req.ReportType]; !ok {
+		c.JSON(http.StatusUnprocessableEntity, middleware.ErrorResponse{
+			Code:    "VALIDATION_ERROR",
+			Message: "unsupported report_type",
+			Details: map[string]string{
+				"report_type": "must be one of: fulfillments, customers, audit",
+			},
+		})
 		return
 	}
 
@@ -200,7 +219,20 @@ func (h *ReportHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.reportRepo.Delete(c.Request.Context(), id); err != nil {
+	actorRaw, _ := c.Get("userID")
+	actorID, _ := actorRaw.(uuid.UUID)
+
+	if h.exportSvc == nil {
+		// Fallback: direct delete without file removal.
+		if err := h.reportRepo.Delete(c.Request.Context(), id); err != nil {
+			middleware.DomainErrorToHTTP(c, err)
+		} else {
+			c.Status(http.StatusNoContent)
+		}
+		return
+	}
+
+	if err := h.exportSvc.Delete(c.Request.Context(), id, actorID); err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
 	}

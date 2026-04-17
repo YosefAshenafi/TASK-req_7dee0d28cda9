@@ -118,17 +118,41 @@ func TestFulfillmentsGet_NotFound(t *testing.T) {
 	mustStatus(t, rr, http.StatusNotFound)
 }
 
+func testShipAddr() map[string]any {
+	return map[string]any{
+		"line_1":   "123 Main St",
+		"city":     "Boston",
+		"state":    "MA",
+		"zip_code": "02110",
+	}
+}
+
 func TestFulfillmentsTransition_DraftToReadyToShip(t *testing.T) {
 	tierID := apiCreateTier(t)
 	custID := apiCreateCustomer(t)
 	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
 	id := ff["id"].(string)
 
-	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	rr := apiTransition(t, id, map[string]any{
+		"to_status":        "READY_TO_SHIP",
+		"shipping_address": testShipAddr(),
+	})
 	mustStatus(t, rr, http.StatusOK)
 	body := decodeJSON(t, rr)
 	if body["status"] != "READY_TO_SHIP" {
 		t.Errorf("expected READY_TO_SHIP, got %v", body["status"])
+	}
+}
+
+func TestFulfillmentsTransition_DraftToReadyToShip_MissingAddress(t *testing.T) {
+	tierID := apiCreateTier(t)
+	custID := apiCreateCustomer(t)
+	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
+	id := ff["id"].(string)
+
+	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	if rr.Code == http.StatusOK {
+		t.Fatal("expected error when PHYSICAL READY_TO_SHIP has no shipping address")
 	}
 }
 
@@ -138,8 +162,11 @@ func TestFulfillmentsTransition_ShippedRequiresTracking(t *testing.T) {
 	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
 	id := ff["id"].(string)
 
-	// advance to READY_TO_SHIP
-	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	// advance to READY_TO_SHIP (address required for PHYSICAL)
+	rr := apiTransition(t, id, map[string]any{
+		"to_status":        "READY_TO_SHIP",
+		"shipping_address": testShipAddr(),
+	})
 	mustStatus(t, rr, http.StatusOK)
 
 	// try SHIPPED without tracking → should fail
@@ -185,7 +212,10 @@ func TestFulfillmentsTransition_PhysicalCannotIssueVoucher(t *testing.T) {
 	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
 	id := ff["id"].(string)
 
-	rr := apiTransition(t, id, map[string]any{"to_status": "READY_TO_SHIP"})
+	rr := apiTransition(t, id, map[string]any{
+		"to_status":        "READY_TO_SHIP",
+		"shipping_address": testShipAddr(),
+	})
 	mustStatus(t, rr, http.StatusOK)
 
 	rr = apiTransition(t, id, map[string]any{
@@ -223,6 +253,33 @@ func TestFulfillmentsTimeline(t *testing.T) {
 
 	rr := admin(http.MethodGet, "/api/v1/fulfillments/"+id+"/timeline", nil)
 	mustStatus(t, rr, http.StatusOK)
+}
+
+func TestFulfillmentShippingAddressUpdate_VersionConflict(t *testing.T) {
+	tierID := apiCreateTier(t)
+	custID := apiCreateCustomer(t)
+	ff := apiCreateFulfillment(t, tierID, custID, "PHYSICAL")
+	id := ff["id"].(string)
+
+	rr := apiTransition(t, id, map[string]any{
+		"to_status": "READY_TO_SHIP",
+		"shipping_address": map[string]any{
+			"line_1":   "123 Main St",
+			"city":     "Boston",
+			"state":    "MA",
+			"zip_code": "02110",
+		},
+	})
+	mustStatus(t, rr, http.StatusOK)
+
+	rr = admin(http.MethodPut, "/api/v1/fulfillments/"+id+"/shipping-address", map[string]any{
+		"version":  1,
+		"line_1":   "500 Updated St",
+		"city":     "Boston",
+		"state":    "MA",
+		"zip_code": "02111",
+	})
+	mustStatus(t, rr, http.StatusConflict)
 }
 
 func TestFulfillmentsSoftDelete(t *testing.T) {

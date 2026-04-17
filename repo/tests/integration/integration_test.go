@@ -90,7 +90,7 @@ func buildRouter(dbURL string) *gin.Engine {
 	invSvc := service.NewInventoryService(tierRepo, reservationRepo)
 	fulfillSvc := service.NewFulfillmentService(txMgr, fulfillRepo, tierRepo, customerRepo, timelineRepo, shippingRepo, notifRepo, invSvc, auditSvc)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
-	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
+	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo, auditSvc)
 
 	keyPath := os.Getenv("FULFILLOPS_ENCRYPTION_KEY_PATH")
 	if keyPath == "" {
@@ -113,8 +113,8 @@ func buildRouter(dbURL string) *gin.Engine {
 
 	exportDir := os.TempDir()
 	backupDir := os.TempDir()
-	exportSvc := service.NewExportService(reportRepo, fulfillRepo, customerRepo, auditRepo, enc, exportDir)
-	backupSvc := service.NewBackupService(dbURL, backupDir, auditSvc)
+	exportSvc := service.NewExportService(reportRepo, fulfillRepo, customerRepo, auditRepo, enc, exportDir, auditSvc)
+	backupSvc := service.NewBackupService(dbURL, backupDir, os.TempDir(), auditSvc)
 
 	store := sessions.NewCookieStore([]byte("testsessionsecretchars32bytes000"))
 	store.Options = &sessions.Options{

@@ -192,6 +192,18 @@ func (c TemplateCategory) IsValid() bool {
 	return false
 }
 
+// RecipientType distinguishes customer-facing from user-facing message recipients.
+type RecipientType string
+
+const (
+	RecipientCustomer RecipientType = "CUSTOMER"
+	RecipientUser     RecipientType = "USER"
+)
+
+func (r RecipientType) IsValid() bool {
+	return r == RecipientCustomer || r == RecipientUser
+}
+
 // JobStatus is the run state of a scheduled job execution.
 type JobStatus string
 

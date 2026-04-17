@@ -43,6 +43,47 @@ func MaskAddress(address string) string {
 	return parts[0] + " ***"
 }
 
+// MaskCity masks a city name, showing only the first character.
+// e.g. "Boston" → "B***"
+func MaskCity(city string) string {
+	if city == "" {
+		return "***"
+	}
+	runes := []rune(city)
+	return string(runes[0]) + "***"
+}
+
+// MaskZip masks a ZIP code, showing only the first 3 digits.
+// e.g. "02110" → "021XX", "02110-1234" → "021XX"
+func MaskZip(zip string) string {
+	digits := extractDigits(zip)
+	if len(digits) < 3 {
+		return "***XX"
+	}
+	return digits[:3] + "XX"
+}
+
+// MaskState masks a US state code entirely.
+// Per policy, state is not disclosed to non-edit (auditor) roles.
+func MaskState(_ string) string {
+	return "**"
+}
+
+// MaskShippingAddressForAuditor returns a ShippingAddressResponse with all
+// fields masked to the level permitted for non-edit roles (Auditors).
+// Street lines are masked with MaskAddress; City, State, ZIP are individually
+// masked so partial geographic context is never exposed.
+func MaskShippingAddressForAuditor(line1, line2, city, state, zip string) (mLine1, mLine2, mCity, mState, mZip string) {
+	mLine1 = MaskAddress(line1)
+	if line2 != "" {
+		mLine2 = MaskAddress(line2)
+	}
+	mCity = MaskCity(city)
+	mState = MaskState(state)
+	mZip = MaskZip(zip)
+	return
+}
+
 // MaskVoucherCode shows only the last 4 characters of a voucher code.
 // e.g. "ABCD-EFGH-1234" → "****-****-1234"
 func MaskVoucherCode(code string) string {

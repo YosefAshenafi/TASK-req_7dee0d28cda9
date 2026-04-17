@@ -19,6 +19,11 @@ type UserService interface {
 	DeactivateUser(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	List(ctx context.Context, role domain.UserRole, isActive *bool) ([]domain.User, error)
+	// BootstrapAdmin creates the first administrator from env vars if none exists.
+	// It is a no-op when any active administrator already exists.
+	BootstrapAdmin(ctx context.Context, username, email, password string) error
+	// ChangePassword sets a new password and clears the must_rotate_password flag.
+	ChangePassword(ctx context.Context, id uuid.UUID, newPassword string) error
 }
 
 type userService struct {
@@ -134,4 +139,62 @@ func (s *userService) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, 
 
 func (s *userService) List(ctx context.Context, role domain.UserRole, isActive *bool) ([]domain.User, error) {
 	return s.userRepo.List(ctx, role, isActive)
+}
+
+// BootstrapAdmin creates the first ADMINISTRATOR account from the supplied
+// credentials and marks it must_rotate_password=true. It is a no-op when any
+// active administrator already exists.
+func (s *userService) BootstrapAdmin(ctx context.Context, username, email, password string) error {
+	count, err := s.userRepo.CountByRole(ctx, domain.RoleAdministrator)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil // at least one admin already exists
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := &domain.User{
+		Username:           username,
+		Email:              email,
+		PasswordHash:       string(hash),
+		Role:               domain.RoleAdministrator,
+		IsActive:           true,
+		MustRotatePassword: true,
+	}
+	created, err := s.userRepo.Create(ctx, user)
+	if err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(ctx, "users", created.ID, "BOOTSTRAP", nil, map[string]any{
+			"username": created.Username,
+			"role":     created.Role,
+		})
+	}
+	return nil
+}
+
+// ChangePassword sets a new bcrypt password and clears the must_rotate_password flag.
+func (s *userService) ChangePassword(ctx context.Context, id uuid.UUID, newPassword string) error {
+	if len(newPassword) < 8 {
+		return domain.NewValidationError("weak password", map[string]string{
+			"password": "must be at least 8 characters",
+		})
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.userRepo.UpdatePassword(ctx, id, string(hash), true); err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(ctx, "users", id, "CHANGE_PASSWORD", nil, nil)
+	}
+	return nil
 }

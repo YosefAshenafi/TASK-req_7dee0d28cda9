@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,20 +20,23 @@ import (
 )
 
 type PageAdminHandler struct {
-	store        sessions.Store
-	pool         *pgxpool.Pool
-	jobRunRepo   repository.JobRunRepository
-	tierRepo     repository.TierRepository
-	customerRepo repository.CustomerRepository
-	fulfillRepo  repository.FulfillmentRepository
-	templateRepo repository.MessageTemplateRepository
-	userSvc      service.UserService
-	userRepo     repository.UserRepository
-	backupSvc    service.BackupService
-	scheduler    JobScheduler
-	encKeyPath   string
-	exportDir    string
-	backupDir    string
+	store           sessions.Store
+	pool            *pgxpool.Pool
+	jobRunRepo      repository.JobRunRepository
+	tierRepo        repository.TierRepository
+	customerRepo    repository.CustomerRepository
+	fulfillRepo     repository.FulfillmentRepository
+	templateRepo    repository.MessageTemplateRepository
+	userSvc         service.UserService
+	userRepo        repository.UserRepository
+	backupSvc       service.BackupService
+	scheduler       JobScheduler
+	encKeyPath      string
+	exportDir       string
+	backupDir       string
+	auditSvc        service.AuditService
+	jobScheduleRepo repository.JobScheduleRepository
+	drDrillRepo     repository.DRDrillRepository
 }
 
 func NewPageAdminHandler(
@@ -60,6 +64,19 @@ func (h *PageAdminHandler) WithHealthConfig(encKeyPath, exportDir, backupDir str
 	h.exportDir = exportDir
 	h.backupDir = backupDir
 	h.scheduler = scheduler
+	return h
+}
+
+// WithAudit attaches an AuditService for admin operation logging.
+func (h *PageAdminHandler) WithAudit(auditSvc service.AuditService) *PageAdminHandler {
+	h.auditSvc = auditSvc
+	return h
+}
+
+// WithScheduleRepos attaches repositories for job schedule and DR drill management.
+func (h *PageAdminHandler) WithScheduleRepos(jobScheduleRepo repository.JobScheduleRepository, drDrillRepo repository.DRDrillRepository) *PageAdminHandler {
+	h.jobScheduleRepo = jobScheduleRepo
+	h.drDrillRepo = drDrillRepo
 	return h
 }
 
@@ -250,6 +267,14 @@ func (h *PageAdminHandler) ShowBackups(c *gin.Context) {
 }
 
 func (h *PageAdminHandler) PostRunBackup(c *gin.Context) {
+	actorRaw, _ := c.Get("userID")
+	actorID, _ := actorRaw.(uuid.UUID)
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "backups", uuid.Nil, "BACKUP_TRIGGER",
+			nil, map[string]any{"triggered_by": actorID})
+	}
+
 	if h.backupSvc != nil {
 		go func() {
 			if _, err := h.backupSvc.RunBackup(context.Background()); err != nil {
@@ -258,6 +283,188 @@ func (h *PageAdminHandler) PostRunBackup(c *gin.Context) {
 		}()
 	}
 	redirectWithFlash(c, h.store, "/admin/backups", "queued", "Backup started in background.")
+}
+
+// ShowJobSchedules renders the admin job-schedule management page.
+func (h *PageAdminHandler) ShowJobSchedules(c *gin.Context) {
+	ctx := c.Request.Context()
+	var schedules []interface{}
+	if h.jobScheduleRepo != nil {
+		if items, err := h.jobScheduleRepo.List(ctx); err == nil {
+			for _, item := range items {
+				schedules = append(schedules, item)
+			}
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"items": schedules})
+}
+
+// PostUpdateJobSchedule updates a job schedule's cadence.
+func (h *PageAdminHandler) PostUpdateJobSchedule(c *gin.Context) {
+	if h.jobScheduleRepo == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "schedule repo not available"})
+		return
+	}
+	ctx := c.Request.Context()
+	jobKey := c.Param("key")
+
+	schedule, err := h.jobScheduleRepo.GetByKey(ctx, jobKey)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job schedule not found"})
+		return
+	}
+
+	type updateReq struct {
+		IntervalSeconds *int  `json:"interval_seconds"`
+		DailyHour       *int  `json:"daily_hour"`
+		DailyMinute     *int  `json:"daily_minute"`
+		Enabled         bool  `json:"enabled"`
+		Version         int   `json:"version"`
+	}
+	var req updateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	actorRaw, _ := c.Get("userID")
+	actorID, _ := actorRaw.(uuid.UUID)
+
+	before := *schedule
+	schedule.IntervalSeconds = req.IntervalSeconds
+	schedule.DailyHour = req.DailyHour
+	schedule.DailyMinute = req.DailyMinute
+	schedule.Enabled = req.Enabled
+	schedule.Version = req.Version
+	schedule.UpdatedBy = &actorID
+
+	updated, err := h.jobScheduleRepo.Update(ctx, schedule)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "job_schedules", updated.ID, "UPDATE", before, updated)
+	}
+
+	c.JSON(http.StatusOK, updated)
+}
+
+// ListDRDrills returns all DR drill records.
+func (h *PageAdminHandler) ListDRDrills(c *gin.Context) {
+	if h.drDrillRepo == nil {
+		c.JSON(http.StatusOK, gin.H{"items": []interface{}{}})
+		return
+	}
+	page := 1
+	pageSize := 50
+	items, total, err := h.drDrillRepo.List(c.Request.Context(), domain.PageRequest{Page: page, PageSize: pageSize})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, domain.PageResponse[domain.DRDrill]{
+		Items: items, Total: total, Page: page, PageSize: pageSize,
+	})
+}
+
+// PostCreateDRDrill records a new DR drill.
+func (h *PageAdminHandler) PostCreateDRDrill(c *gin.Context) {
+	if h.drDrillRepo == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "dr drill repo not available"})
+		return
+	}
+	type createReq struct {
+		ScheduledFor string  `json:"scheduled_for" binding:"required"`
+		Notes        *string `json:"notes"`
+	}
+	var req createReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	sf, err := parseBlackoutDate(req.ScheduledFor)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid scheduled_for; use RFC3339 or YYYY-MM-DD"})
+		return
+	}
+
+	actorRaw, _ := c.Get("userID")
+	actorID, _ := actorRaw.(uuid.UUID)
+
+	pending := "PENDING"
+	drill := &domain.DRDrill{
+		ScheduledFor: sf,
+		Notes:        req.Notes,
+		ExecutedBy:   &actorID,
+		Outcome:      &pending,
+	}
+	created, err := h.drDrillRepo.Create(c.Request.Context(), drill)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "dr_drills", created.ID, "CREATE", nil, created)
+	}
+
+	c.JSON(http.StatusCreated, created)
+}
+
+// PostUpdateDRDrill records the outcome of a DR drill.
+func (h *PageAdminHandler) PostUpdateDRDrill(c *gin.Context) {
+	if h.drDrillRepo == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "dr drill repo not available"})
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid drill ID"})
+		return
+	}
+
+	type updateReq struct {
+		Outcome      string  `json:"outcome" binding:"required"`
+		Notes        *string `json:"notes"`
+		ArtifactPath *string `json:"artifact_path"`
+	}
+	var req updateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	drill, err := h.drDrillRepo.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "drill not found"})
+		return
+	}
+
+	actorRaw, _ := c.Get("userID")
+	actorID, _ := actorRaw.(uuid.UUID)
+	now := time.Now().UTC()
+
+	before := *drill
+	drill.Outcome = &req.Outcome
+	drill.Notes = req.Notes
+	drill.ArtifactPath = req.ArtifactPath
+	drill.ExecutedBy = &actorID
+	drill.ExecutedAt = &now
+
+	updated, err := h.drDrillRepo.Update(c.Request.Context(), drill)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(c.Request.Context(), "dr_drills", id, "UPDATE", before, updated)
+	}
+
+	c.JSON(http.StatusOK, updated)
 }
 
 func (h *PageAdminHandler) PostRestoreBackup(c *gin.Context) {

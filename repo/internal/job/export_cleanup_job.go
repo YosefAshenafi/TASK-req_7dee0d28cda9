@@ -4,20 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 )
 
 // ExportCleanupJob removes expired report export files from disk and deletes
-// their database records.
+// their database records via the ExportService so file removal and audit
+// logging are consistent with the manual delete path.
 type ExportCleanupJob struct {
 	reportRepo repository.ReportExportRepository
+	exportSvc  service.ExportService
 }
 
-func NewExportCleanupJob(reportRepo repository.ReportExportRepository) *ExportCleanupJob {
-	return &ExportCleanupJob{reportRepo: reportRepo}
+func NewExportCleanupJob(reportRepo repository.ReportExportRepository, exportSvc service.ExportService) *ExportCleanupJob {
+	return &ExportCleanupJob{reportRepo: reportRepo, exportSvc: exportSvc}
 }
 
 func (j *ExportCleanupJob) Run(ctx context.Context) (int, error) {
@@ -28,17 +32,16 @@ func (j *ExportCleanupJob) Run(ctx context.Context) (int, error) {
 
 	removed := 0
 	for _, e := range expired {
-		// Remove file from disk if it exists
-		if e.FilePath != nil && *e.FilePath != "" {
-			if removeErr := os.Remove(*e.FilePath); removeErr != nil && !os.IsNotExist(removeErr) {
-				log.Printf("export_cleanup: removing file %s: %v", *e.FilePath, removeErr)
+		if j.exportSvc != nil {
+			if err := j.exportSvc.Delete(ctx, e.ID, uuid.Nil); err != nil {
+				log.Printf("export_cleanup: deleting export %s: %v", e.ID, err)
+				continue
 			}
-		}
-
-		// Delete database record
-		if err := j.reportRepo.Delete(ctx, e.ID); err != nil {
-			log.Printf("export_cleanup: deleting export record %s: %v", e.ID, err)
-			continue
+		} else {
+			if err := j.reportRepo.Delete(ctx, e.ID); err != nil {
+				log.Printf("export_cleanup: deleting export record %s: %v", e.ID, err)
+				continue
+			}
 		}
 		removed++
 	}

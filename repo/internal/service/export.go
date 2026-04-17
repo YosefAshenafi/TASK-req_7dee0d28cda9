@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,15 +25,20 @@ type ExportService interface {
 	// VerifyChecksum re-hashes the export file and compares to the stored digest.
 	// Returns true if the file is intact.
 	VerifyChecksum(ctx context.Context, exportID uuid.UUID) (bool, error)
+
+	// Delete removes the export file from disk (gracefully if missing) then
+	// deletes the DB record and writes an audit entry.
+	Delete(ctx context.Context, exportID uuid.UUID, actorID uuid.UUID) error
 }
 
 type exportService struct {
-	reportRepo  repository.ReportExportRepository
-	fulfillRepo repository.FulfillmentRepository
+	reportRepo   repository.ReportExportRepository
+	fulfillRepo  repository.FulfillmentRepository
 	customerRepo repository.CustomerRepository
-	auditRepo   repository.AuditRepository
-	encSvc      EncryptionService
-	exportDir   string
+	auditRepo    repository.AuditRepository
+	auditSvc     AuditService
+	encSvc       EncryptionService
+	exportDir    string
 }
 
 func NewExportService(
@@ -42,12 +48,14 @@ func NewExportService(
 	auditRepo repository.AuditRepository,
 	encSvc EncryptionService,
 	exportDir string,
+	auditSvc AuditService,
 ) ExportService {
 	return &exportService{
 		reportRepo:   reportRepo,
 		fulfillRepo:  fulfillRepo,
 		customerRepo: customerRepo,
 		auditRepo:    auditRepo,
+		auditSvc:     auditSvc,
 		encSvc:       encSvc,
 		exportDir:    exportDir,
 	}
@@ -284,6 +292,32 @@ func (s *exportService) VerifyChecksum(ctx context.Context, exportID uuid.UUID) 
 	}
 
 	return actual == *export.ChecksumSHA256, nil
+}
+
+// Delete removes the export file from disk then deletes the DB record.
+// A missing file is logged but does not prevent DB cleanup.
+func (s *exportService) Delete(ctx context.Context, exportID uuid.UUID, actorID uuid.UUID) error {
+	export, err := s.reportRepo.GetByID(ctx, exportID)
+	if err != nil {
+		return fmt.Errorf("getting export record: %w", err)
+	}
+
+	if export.FilePath != nil && *export.FilePath != "" {
+		if removeErr := os.Remove(*export.FilePath); removeErr != nil && !os.IsNotExist(removeErr) {
+			log.Printf("export delete: removing file %s: %v", *export.FilePath, removeErr)
+		}
+	}
+
+	if err := s.reportRepo.Delete(ctx, exportID); err != nil {
+		return fmt.Errorf("deleting export record: %w", err)
+	}
+
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(ctx, "report_exports", exportID, "DELETE",
+			map[string]any{"file_path": export.FilePath, "report_type": export.ReportType},
+			map[string]any{"deleted_by": actorID})
+	}
+	return nil
 }
 
 func strOrEmpty(s *string) string {

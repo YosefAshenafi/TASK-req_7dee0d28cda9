@@ -75,6 +75,18 @@ func (s *retryStubSendLog) GetRetryable(context.Context, time.Time) ([]domain.Se
 	return s.retryables, nil
 }
 
+func (s *retryStubSendLog) GetByID(context.Context, uuid.UUID) (*domain.SendLog, error) {
+	return nil, domain.NewNotFoundError("send log")
+}
+
+func (s *retryStubSendLog) ClearNextRetry(_ context.Context, id uuid.UUID) error {
+	if s.nextRetry == nil {
+		s.nextRetry = map[uuid.UUID]time.Time{}
+	}
+	delete(s.nextRetry, id)
+	return nil
+}
+
 type retryStubNotif struct {
 	created []*domain.Notification
 	err     error
@@ -105,19 +117,20 @@ func TestMessagingRetryPending(t *testing.T) {
 	}
 	templRepo := &stubTemplateRepo{tmpl: tmpl}
 
-	// Build pending send logs: 1 in-app (retryable), 1 SMS (retryable), 1 over max attempts.
+	// FAILED rows: 1 in-app (retryable), 1 SMS (retryable), 1 over max attempts.
 	inAppID := uuid.New()
 	smsID := uuid.New()
 	deadID := uuid.New()
+	firstFailed := time.Now().UTC().Add(-5 * time.Minute)
 	sendRepo := &retryStubSendLog{
 		retryables: []domain.SendLog{
-			{ID: inAppID, Channel: domain.ChannelInApp, TemplateID: &tmplID, RecipientID: uuid.New(), AttemptCount: 0},
-			{ID: smsID, Channel: domain.ChannelSMS, RecipientID: uuid.New(), AttemptCount: 1},
-			{ID: deadID, Channel: domain.ChannelEmail, RecipientID: uuid.New(), AttemptCount: 10},
+			{ID: inAppID, Channel: domain.ChannelInApp, Status: domain.SendFailed, TemplateID: &tmplID, RecipientID: uuid.New(), AttemptCount: 0, FirstFailedAt: &firstFailed},
+			{ID: smsID, Channel: domain.ChannelSMS, Status: domain.SendFailed, RecipientID: uuid.New(), AttemptCount: 1, FirstFailedAt: &firstFailed},
+			{ID: deadID, Channel: domain.ChannelEmail, Status: domain.SendFailed, RecipientID: uuid.New(), AttemptCount: 10, FirstFailedAt: &firstFailed},
 		},
 	}
 	notifRepo := &stubNotificationRepo{}
-	svc := NewMessagingService(templRepo, sendRepo, notifRepo)
+	svc := NewMessagingService(templRepo, sendRepo, notifRepo, nil)
 
 	retried, err := svc.RetryPending(context.Background(), 3)
 	if err != nil {
@@ -126,11 +139,15 @@ func TestMessagingRetryPending(t *testing.T) {
 	if retried != 2 {
 		t.Fatalf("retried = %d, want 2", retried)
 	}
-	if sendRepo.updates[deadID] != domain.SendFailed {
-		t.Fatalf("over-attempt entry should be marked failed, got %v", sendRepo.updates[deadID])
+	// deadID is over maxAttempts — ClearNextRetry is called (no UpdateStatus).
+	if _, hasUpdate := sendRepo.updates[deadID]; hasUpdate {
+		t.Fatalf("over-attempt entry should NOT have UpdateStatus called, got %v", sendRepo.updates[deadID])
 	}
-	if sendRepo.updates[inAppID] != domain.SendSent {
-		t.Fatalf("in-app retry should be marked sent, got %v", sendRepo.updates[inAppID])
+	if _, hasRetry := sendRepo.nextRetry[deadID]; hasRetry {
+		t.Fatal("over-attempt entry should have next_retry_at cleared")
+	}
+	if sendRepo.updates[inAppID] != domain.SendQueued {
+		t.Fatalf("in-app entry should be re-queued, got %v", sendRepo.updates[inAppID])
 	}
 	if sendRepo.updates[smsID] != domain.SendQueued {
 		t.Fatalf("sms retry should be re-queued, got %v", sendRepo.updates[smsID])
@@ -152,7 +169,7 @@ func TestMessagingRetryPending_InAppFallbackSchedules(t *testing.T) {
 		},
 	}
 	notifRepo := &failingNotifRepo{}
-	svc := NewMessagingService(templRepo, sendRepo, notifRepo)
+	svc := NewMessagingService(templRepo, sendRepo, notifRepo, nil)
 
 	retried, err := svc.RetryPending(context.Background(), 3)
 	if err != nil {
@@ -209,7 +226,7 @@ func TestExportWriteCustomersCSV_Masked(t *testing.T) {
 	auditRepo := &stubAuditListRepo{}
 	fulfillRepo := &stubFulfillmentRepo{}
 	tmp := t.TempDir()
-	svc := NewExportService(reportRepo, fulfillRepo, custRepo, auditRepo, enc, tmp)
+	svc := NewExportService(reportRepo, fulfillRepo, custRepo, auditRepo, enc, tmp, nil)
 
 	if err := svc.GenerateExport(context.Background(), report.ID); err != nil {
 		t.Fatalf("GenerateExport: %v", err)
@@ -243,7 +260,7 @@ func TestExportWriteAuditCSV(t *testing.T) {
 		{ID: uuid.New(), TableName: "tiers", Operation: "DELETE", CreatedAt: time.Now().UTC()},
 	}}
 	tmp := t.TempDir()
-	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, auditRepo, enc, tmp)
+	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, auditRepo, enc, tmp, nil)
 
 	if err := svc.GenerateExport(context.Background(), report.ID); err != nil {
 		t.Fatalf("GenerateExport: %v", err)
@@ -260,7 +277,7 @@ func TestExportFailExport_UnknownReportType(t *testing.T) {
 	report := &domain.ReportExport{ID: uuid.New(), ReportType: "bogus", Filters: []byte(`{}`)}
 	reportRepo := &stubReportRepo{export: report}
 	tmp := t.TempDir()
-	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, &stubAuditListRepo{}, enc, tmp)
+	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, &stubAuditListRepo{}, enc, tmp, nil)
 
 	err := svc.GenerateExport(context.Background(), report.ID)
 	if err == nil {
@@ -275,7 +292,7 @@ func TestExportFailExport_OnReportGetError(t *testing.T) {
 	enc := newTestEncryptionService(t)
 	reportRepo := &stubReportRepo{} // export=nil → GetByID returns NotFound
 	tmp := t.TempDir()
-	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, &stubAuditListRepo{}, enc, tmp)
+	svc := NewExportService(reportRepo, &stubFulfillmentRepo{}, &stubCustomerRepo{}, &stubAuditListRepo{}, enc, tmp, nil)
 	if err := svc.GenerateExport(context.Background(), uuid.New()); err == nil {
 		t.Fatalf("expected error when report record missing")
 	}
@@ -383,7 +400,7 @@ func TestEncryptionService_DecryptErrors(t *testing.T) {
 
 func TestBackupService_RunBackupPgDumpMissing(t *testing.T) {
 	dir := t.TempDir()
-	svc := NewBackupService("postgres://invalid", dir, nil)
+	svc := NewBackupService("postgres://invalid", dir, "", nil)
 	// In the golang:1.23-alpine test image pg_dump is not installed, so this
 	// exercises: file create → pg_dump spawn error → cleanup → error return.
 	_, err := svc.RunBackup(context.Background())
@@ -406,7 +423,7 @@ func TestBackupService_RestoreCorruptFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, bk+".sql.gz"), []byte("not gzip"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	svc := NewBackupService("postgres://invalid", dir, nil)
+	svc := NewBackupService("postgres://invalid", dir, "", nil)
 	if err := svc.RestoreFromBackup(context.Background(), bk, false); err == nil {
 		t.Fatal("expected restore to fail on non-gzip backup")
 	}
@@ -416,13 +433,13 @@ func TestBackupService_RestoreCorruptFile(t *testing.T) {
 
 func TestBackupService_ListAndRestore(t *testing.T) {
 	// Missing backup dir → nil result, no error
-	svc := NewBackupService("postgres://x", filepath.Join(t.TempDir(), "nonexistent"), nil)
+	svc := NewBackupService("postgres://x", filepath.Join(t.TempDir(), "nonexistent"), "", nil)
 	if items, err := svc.ListBackups(context.Background()); err != nil || items != nil {
 		t.Fatalf("ListBackups(missing) = (%v, %v)", items, err)
 	}
 	// Dir exists but empty → empty list
 	dir := t.TempDir()
-	svc2 := NewBackupService("postgres://x", dir, nil)
+	svc2 := NewBackupService("postgres://x", dir, "", nil)
 	if items, err := svc2.ListBackups(context.Background()); err != nil || len(items) != 0 {
 		t.Fatalf("ListBackups(empty) = (%d, %v)", len(items), err)
 	}

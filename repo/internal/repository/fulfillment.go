@@ -29,6 +29,7 @@ type FulfillmentRepository interface {
 	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Fulfillment, error)
 	Create(ctx context.Context, tx pgx.Tx, f *domain.Fulfillment) (*domain.Fulfillment, error)
 	Update(ctx context.Context, tx pgx.Tx, f *domain.Fulfillment) (*domain.Fulfillment, error)
+	BumpVersion(ctx context.Context, tx pgx.Tx, id uuid.UUID, expectedVersion int) error
 	CountByCustomerAndTier(ctx context.Context, tx pgx.Tx, customerID, tierID uuid.UUID, since time.Time) (int, error)
 	SoftDelete(ctx context.Context, id uuid.UUID, deletedBy uuid.UUID) error
 	Restore(ctx context.Context, id uuid.UUID) error
@@ -158,6 +159,21 @@ func (r *pgFulfillmentRepo) Update(ctx context.Context, tx pgx.Tx, f *domain.Ful
 	}
 	f.Version++
 	return f, nil
+}
+
+func (r *pgFulfillmentRepo) BumpVersion(ctx context.Context, tx pgx.Tx, id uuid.UUID, expectedVersion int) error {
+	tag, err := tx.Exec(ctx,
+		`UPDATE fulfillments
+		 SET updated_at=NOW(), version=version+1
+		 WHERE id=$1 AND version=$2 AND deleted_at IS NULL`,
+		id, expectedVersion)
+	if err != nil {
+		return fmt.Errorf("bumping fulfillment version: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.NewConflictError()
+	}
+	return nil
 }
 
 func (r *pgFulfillmentRepo) CountByCustomerAndTier(ctx context.Context, tx pgx.Tx, customerID, tierID uuid.UUID, since time.Time) (int, error) {

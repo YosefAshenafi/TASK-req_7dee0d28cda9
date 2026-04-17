@@ -35,6 +35,7 @@ type PageFulfillmentHandler struct {
 	shippingRepo repository.ShippingAddressRepository
 	exRepo       repository.ExceptionRepository
 	encSvc       service.EncryptionService
+	auditSvc     service.AuditService
 }
 
 func NewPageFulfillmentHandler(
@@ -53,6 +54,11 @@ func NewPageFulfillmentHandler(
 		tierRepo: tierRepo, customerRepo: customerRepo, timelineRepo: timelineRepo,
 		shippingRepo: shippingRepo, exRepo: exRepo, encSvc: encSvc,
 	}
+}
+
+func (h *PageFulfillmentHandler) WithAudit(auditSvc service.AuditService) *PageFulfillmentHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 func (h *PageFulfillmentHandler) List(c *gin.Context) {
@@ -166,23 +172,23 @@ func (h *PageFulfillmentHandler) ShowDetail(c *gin.Context) {
 
 	// Decrypt shipping address for display.
 	// Admins and Fulfillment Specialists see full address; all other roles
-	// (including Auditors) see masked address lines to protect sensitive PII.
+	// (including Auditors) see masked street, city, state, and ZIP.
 	var shippingAddrResp *domain.ShippingAddressResponse
 	if shippingAddr != nil {
 		line1, _ := h.encSvc.DecryptToString(shippingAddr.Line1Encrypted)
 		line2, _ := h.encSvc.DecryptToString(shippingAddr.Line2Encrypted)
+		city := shippingAddr.City
+		state := shippingAddr.State
+		zip := shippingAddr.ZipCode
 		if !canEdit(c, h.store) {
-			line1 = util.MaskAddress(line1)
-			if line2 != "" {
-				line2 = util.MaskAddress(line2)
-			}
+			line1, line2, city, state, zip = util.MaskShippingAddressForAuditor(line1, line2, city, state, zip)
 		}
 		shippingAddrResp = &domain.ShippingAddressResponse{
 			Line1:   line1,
 			Line2:   line2,
-			City:    shippingAddr.City,
-			State:   shippingAddr.State,
-			ZipCode: shippingAddr.ZipCode,
+			City:    city,
+			State:   state,
+			ZipCode: zip,
 		}
 	}
 
@@ -316,23 +322,32 @@ func (h *PageFulfillmentHandler) PostTransition(c *gin.Context) {
 }
 
 func (h *PageFulfillmentHandler) PostDelete(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
+	before, _ := h.fulfillRepo.GetByID(ctx, id)
 	if err := h.fulfillRepo.SoftDelete(ctx, id, deletedBy); err != nil {
 		redirectWithFlash(c, h.store, "/fulfillments/"+id.String(), "error", "Delete failed: "+err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "fulfillments", id, "DELETE", before, map[string]any{"deleted_by": deletedBy})
 	}
 	redirectWithFlash(c, h.store, "/fulfillments", "success", "Fulfillment deleted.")
 }
 
 func (h *PageFulfillmentHandler) PostRestore(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	if err := h.fulfillRepo.Restore(ctx, id); err != nil {
 		redirectWithFlash(c, h.store, "/admin/recovery", "error", "Restore failed.")
 		return
+	}
+	if h.auditSvc != nil {
+		if restored, err := h.fulfillRepo.GetByID(ctx, id); err == nil {
+			_ = h.auditSvc.Log(ctx, "fulfillments", id, "RESTORE", nil, restored)
+		}
 	}
 	redirectWithFlash(c, h.store, "/admin/recovery", "success", "Fulfillment restored.")
 }

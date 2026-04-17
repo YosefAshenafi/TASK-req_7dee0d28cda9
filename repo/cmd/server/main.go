@@ -69,6 +69,8 @@ func main() {
 	blackoutRepo := repository.NewBlackoutDateRepository(db)
 	jobRunRepo := repository.NewJobRunRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	jobScheduleRepo := repository.NewJobScheduleRepository(db)
+	drDrillRepo := repository.NewDRDrillRepository(db)
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	txMgr := repository.NewTxManager(db)
@@ -80,30 +82,32 @@ func main() {
 		shippingRepo, notifRepo, invSvc, auditSvc,
 	)
 	exceptionSvc := service.NewExceptionService(exceptionRepo, exEventRepo, auditSvc)
-	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo)
-	exportSvc := service.NewExportService(reportRepo, fulfillRepo, customerRepo, auditRepo, enc, cfg.ExportDir)
-	backupSvc := service.NewBackupService(cfg.DatabaseURL, cfg.BackupDir, auditSvc)
+	messagingSvc := service.NewMessagingService(templateRepo, sendLogRepo, notifRepo, auditSvc)
+
+	// Bootstrap the first administrator from env vars (no-op if one already exists).
+	if cfg.BootstrapAdminEmail != "" && cfg.BootstrapAdminPassword != "" {
+		if err := userSvc.BootstrapAdmin(context.Background(), "admin", cfg.BootstrapAdminEmail, cfg.BootstrapAdminPassword); err != nil {
+			log.Printf("bootstrap admin: %v", err)
+		} else {
+			log.Println("bootstrap admin: complete")
+		}
+	}
+	exportSvc := service.NewExportService(reportRepo, fulfillRepo, customerRepo, auditRepo, enc, cfg.ExportDir, auditSvc)
+	backupSvc := service.NewBackupService(cfg.DatabaseURL, cfg.BackupDir, cfg.AssetsDir, auditSvc)
 
 	slaSvc := service.NewSLAService(settingRepo, blackoutRepo)
 
-	// ── Scheduler ─────────────────────────────────────────────────────────────
+	// ── Scheduler — load cadences from DB ────────────────────────────────────
 	sched := job.NewScheduler(jobRunRepo)
-	sched.Register("overdue-check", 15*time.Minute,
-		job.NewOverdueJob(fulfillRepo, exceptionRepo, slaSvc).Run)
-	sched.Register("notify-retry", 10*time.Minute,
-		job.NewNotifyJob(messagingSvc, 3).Run)
-	sched.RegisterDaily("cleanup", 3, 0,
-		job.NewCleanupJob(db, 30).Run)
-	sched.RegisterDaily("export-cleanup", 3, 30,
-		job.NewExportCleanupJob(reportRepo).Run)
-	sched.RegisterDaily("stats", 2, 0,
-		job.NewStatsJob(fulfillRepo, tierRepo).Run)
-	// Compliance: nightly backup at 01:00 UTC.
-	sched.RegisterDaily("backup", 1, 0,
-		job.NewBackupJob(backupSvc).Run)
-	// Compliance: daily fulfillment + audit export at 02:30 UTC.
-	sched.RegisterDaily("scheduled-reports", 2, 30,
-		job.NewScheduledReportJob(reportRepo, exportSvc).Run)
+	if cfg.SchedulerTimezone != "" {
+		if loc, err := time.LoadLocation(cfg.SchedulerTimezone); err == nil {
+			sched.WithTimezone(loc)
+		} else {
+			log.Printf("scheduler: unknown timezone %q, defaulting to UTC: %v", cfg.SchedulerTimezone, err)
+		}
+	}
+	registerScheduledJobs(context.Background(), sched, jobScheduleRepo,
+		fulfillRepo, tierRepo, exceptionRepo, slaSvc, messagingSvc, db, reportRepo, exportSvc, backupSvc)
 
 	// ── Session store ─────────────────────────────────────────────────────────
 	store := sessions.NewCookieStore([]byte(cfg.SessionSecret))
@@ -137,36 +141,38 @@ func main() {
 	})
 
 	handler.RegisterRoutes(r, handler.Deps{
-		Pool:         db,
-		Store:        store,
-		Scheduler:    sched,
-		EncKeyPath:   cfg.EncryptionKeyPath,
-		ExportDir:    cfg.ExportDir,
-		BackupDir:    cfg.BackupDir,
-		UserSvc:      userSvc,
-		FulfillSvc:   fulfillSvc,
-		ExceptionSvc: exceptionSvc,
-		MessagingSvc: messagingSvc,
-		AuditSvc:     auditSvc,
-		EncSvc:       enc,
-		ExportSvc:    exportSvc,
-		BackupSvc:    backupSvc,
-		TierRepo:     tierRepo,
-		CustomerRepo: customerRepo,
-		FulfillRepo:  fulfillRepo,
-		TimelineRepo: timelineRepo,
-		ShippingRepo: shippingRepo,
-		ExceptionRepo: exceptionRepo,
-		ExEventRepo:  exEventRepo,
-		TemplateRepo: templateRepo,
-		SendLogRepo:  sendLogRepo,
-		NotifRepo:    notifRepo,
-		ReportRepo:   reportRepo,
-		AuditRepo:    auditRepo,
-		SettingRepo:  settingRepo,
-		BlackoutRepo: blackoutRepo,
-		JobRunRepo:   jobRunRepo,
-		UserRepo:     userRepo,
+		Pool:            db,
+		Store:           store,
+		Scheduler:       sched,
+		EncKeyPath:      cfg.EncryptionKeyPath,
+		ExportDir:       cfg.ExportDir,
+		BackupDir:       cfg.BackupDir,
+		UserSvc:         userSvc,
+		FulfillSvc:      fulfillSvc,
+		ExceptionSvc:    exceptionSvc,
+		MessagingSvc:    messagingSvc,
+		AuditSvc:        auditSvc,
+		EncSvc:          enc,
+		ExportSvc:       exportSvc,
+		BackupSvc:       backupSvc,
+		TierRepo:        tierRepo,
+		CustomerRepo:    customerRepo,
+		FulfillRepo:     fulfillRepo,
+		TimelineRepo:    timelineRepo,
+		ShippingRepo:    shippingRepo,
+		ExceptionRepo:   exceptionRepo,
+		ExEventRepo:     exEventRepo,
+		TemplateRepo:    templateRepo,
+		SendLogRepo:     sendLogRepo,
+		NotifRepo:       notifRepo,
+		ReportRepo:      reportRepo,
+		AuditRepo:       auditRepo,
+		SettingRepo:     settingRepo,
+		BlackoutRepo:    blackoutRepo,
+		JobRunRepo:      jobRunRepo,
+		UserRepo:        userRepo,
+		JobScheduleRepo: jobScheduleRepo,
+		DRDrillRepo:     drDrillRepo,
 	})
 
 	srv := &http.Server{
@@ -199,6 +205,80 @@ func main() {
 		log.Fatalf("forced shutdown: %v", err)
 	}
 	log.Println("Server stopped.")
+}
+
+// registerScheduledJobs reads cadences from job_schedules and registers each
+// job with the scheduler. Falls back to hard-coded defaults when the DB row is
+// absent or the table is unavailable.
+func registerScheduledJobs(
+	ctx context.Context,
+	sched *job.Scheduler,
+	jobScheduleRepo repository.JobScheduleRepository,
+	fulfillRepo repository.FulfillmentRepository,
+	tierRepo repository.TierRepository,
+	exceptionRepo repository.ExceptionRepository,
+	slaSvc service.SLAService,
+	messagingSvc service.MessagingService,
+	db *pgxpool.Pool,
+	reportRepo repository.ReportExportRepository,
+	exportSvc service.ExportService,
+	backupSvc service.BackupService,
+) {
+	schedules, err := jobScheduleRepo.List(ctx)
+	if err != nil {
+		log.Printf("scheduler: could not load job_schedules (%v); using hard-coded defaults", err)
+	}
+
+	// cadenceFor returns (isDaily, interval, hour, minute, enabled).
+	cadenceFor := func(key string, defInterval time.Duration, defH, defM int) (bool, time.Duration, int, int, bool) {
+		for _, s := range schedules {
+			if s.JobKey != key {
+				continue
+			}
+			if !s.Enabled {
+				return false, 0, 0, 0, false
+			}
+			if s.IntervalSeconds != nil {
+				return false, time.Duration(*s.IntervalSeconds) * time.Second, 0, 0, true
+			}
+			if s.DailyHour != nil && s.DailyMinute != nil {
+				return true, 0, *s.DailyHour, *s.DailyMinute, true
+			}
+		}
+		// Default.
+		if defInterval > 0 {
+			return false, defInterval, 0, 0, true
+		}
+		return true, 0, defH, defM, true
+	}
+
+	register := func(name string, defInterval time.Duration, defH, defM int, fn job.JobFunc) {
+		daily, interval, h, m, enabled := cadenceFor(name, defInterval, defH, defM)
+		if !enabled {
+			log.Printf("scheduler: job %s is disabled by job_schedules", name)
+			return
+		}
+		if daily {
+			sched.RegisterDaily(name, h, m, fn)
+		} else {
+			sched.Register(name, interval, fn)
+		}
+	}
+
+	register("overdue-check", 15*time.Minute, 0, 0,
+		job.NewOverdueJob(fulfillRepo, exceptionRepo, slaSvc).Run)
+	register("notify-retry", 10*time.Minute, 0, 0,
+		job.NewNotifyJob(messagingSvc, 3).Run)
+	register("cleanup", 0, 3, 0,
+		job.NewCleanupJob(db, 30).Run)
+	register("export-cleanup", 0, 3, 30,
+		job.NewExportCleanupJob(reportRepo, exportSvc).Run)
+	register("stats", 0, 2, 0,
+		job.NewStatsJob(fulfillRepo, tierRepo).Run)
+	register("backup", 0, 1, 0,
+		job.NewBackupJob(backupSvc).Run)
+	register("scheduled-reports", 0, 2, 30,
+		job.NewScheduledReportJob(reportRepo, exportSvc).Run)
 }
 
 func connectDB(databaseURL string) (*pgxpool.Pool, error) {

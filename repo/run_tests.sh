@@ -150,11 +150,38 @@ echo -e "${BOLD}╔════════════════════�
 echo    "║         FulfillOps — Test Suite Runner                   ║"
 echo -e "╚══════════════════════════════════════════════════════════╝${RESET}"
 
-declare -a SUITES=(
+declare -a ALL_SUITES=(
   "Unit Tests|./tests/unit_tests/ ./internal/service|./internal/domain/...,./internal/util/..."
   "API Tests|./tests/API_tests/ ./internal/repository|./internal/repository/..."
   "E2E Tests|./tests/e2e_tests/ ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/..."
 )
+
+# Filter suites based on the first CLI argument (defaults to running every suite).
+# Supported filters map to the documented commands in README.md.
+FILTER="${1:-all}"
+declare -a SUITES=()
+case "$FILTER" in
+  all|smoke)
+    SUITES=("${ALL_SUITES[@]}")
+    ;;
+  unit|service|repo|handler|jobs)
+    # Collapse all "package-level unit-ish" filters onto the Unit suite which
+    # already runs service + unit tests. Separate selective package runs are
+    # easy to re-derive with `go test ./internal/<pkg>/...` directly.
+    SUITES=("Unit Tests|./tests/unit_tests/ ./internal/service ./internal/handler ./internal/repository ./internal/job|./internal/...")
+    ;;
+  api)
+    SUITES=("API Tests|./tests/API_tests/ ./internal/repository|./internal/repository/...")
+    ;;
+  e2e|integration)
+    SUITES=("E2E Tests|./tests/e2e_tests/ ./tests/integration ./internal/job ./internal/config ./internal/middleware|./internal/job/...,./internal/config/...,./internal/middleware/...")
+    ;;
+  *)
+    echo -e "${RED}Unknown suite filter: ${FILTER}${RESET}"
+    echo "Usage: $0 [all|unit|api|e2e|integration|smoke|service|repo|handler|jobs]"
+    exit 2
+    ;;
+esac
 
 # ── run suites (output streams live — NOT inside $()) ────────────────────────
 for SUITE in "${SUITES[@]}"; do

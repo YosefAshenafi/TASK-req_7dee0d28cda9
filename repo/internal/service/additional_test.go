@@ -32,13 +32,13 @@ func (s *stubAuditRepo) List(context.Context, repository.AuditFilters, domain.Pa
 }
 
 type stubUserRepo struct {
-	byName     map[string]*domain.User
-	byID       map[uuid.UUID]*domain.User
-	created    *domain.User
-	updated    *domain.User
+	byName      map[string]*domain.User
+	byID        map[uuid.UUID]*domain.User
+	created     *domain.User
+	updated     *domain.User
 	deactivated uuid.UUID
-	list       []domain.User
-	err        error
+	list        []domain.User
+	err         error
 }
 
 func (s *stubUserRepo) GetByUsername(_ context.Context, username string) (*domain.User, error) {
@@ -90,6 +90,23 @@ func (s *stubUserRepo) Update(_ context.Context, u *domain.User) (*domain.User, 
 func (s *stubUserRepo) Deactivate(_ context.Context, id uuid.UUID) error {
 	s.deactivated = id
 	return s.err
+}
+
+func (s *stubUserRepo) UpdatePassword(_ context.Context, id uuid.UUID, hash string, _ bool) error {
+	if u, ok := s.byID[id]; ok {
+		u.PasswordHash = hash
+	}
+	return s.err
+}
+
+func (s *stubUserRepo) CountByRole(_ context.Context, role domain.UserRole) (int, error) {
+	count := 0
+	for _, u := range s.byID {
+		if u.Role == role && u.IsActive {
+			count++
+		}
+	}
+	return count, s.err
 }
 
 type stubTierRepo struct {
@@ -278,6 +295,12 @@ func (s *stubSendLogRepo) GetRetryable(context.Context, time.Time) ([]domain.Sen
 	return s.retryables, nil
 }
 
+func (s *stubSendLogRepo) GetByID(context.Context, uuid.UUID) (*domain.SendLog, error) {
+	return nil, domain.NewNotFoundError("send log")
+}
+
+func (s *stubSendLogRepo) ClearNextRetry(context.Context, uuid.UUID) error { return nil }
+
 type stubNotificationRepo struct {
 	created []*domain.Notification
 }
@@ -361,6 +384,10 @@ func (s *stubFulfillmentRepo) Create(context.Context, pgx.Tx, *domain.Fulfillmen
 
 func (s *stubFulfillmentRepo) Update(context.Context, pgx.Tx, *domain.Fulfillment) (*domain.Fulfillment, error) {
 	return nil, nil
+}
+
+func (s *stubFulfillmentRepo) BumpVersion(context.Context, pgx.Tx, uuid.UUID, int) error {
+	return nil
 }
 
 func (s *stubFulfillmentRepo) CountByCustomerAndTier(context.Context, pgx.Tx, uuid.UUID, uuid.UUID, time.Time) (int, error) {
@@ -553,17 +580,17 @@ func TestExceptionAndMessagingServices(t *testing.T) {
 	}}
 	sendLogRepo := &stubSendLogRepo{}
 	notifRepo := &stubNotificationRepo{}
-	messagingSvc := NewMessagingService(templateRepo, sendLogRepo, notifRepo)
+	messagingSvc := NewMessagingService(templateRepo, sendLogRepo, notifRepo, nil)
 
-	if _, err := messagingSvc.Dispatch(context.Background(), templateRepo.tmpl.ID, actorID, actorID, map[string]any{"x": 1}); err != nil {
+	if _, err := messagingSvc.Dispatch(context.Background(), templateRepo.tmpl.ID, actorID, nil, map[string]any{"x": 1}); err != nil {
 		t.Fatalf("Dispatch() error = %v", err)
 	}
-	if len(notifRepo.created) != 1 || sendLogRepo.created == nil || sendLogRepo.created.Status != domain.SendSent {
-		t.Fatal("expected in-app notification dispatch to create sent log")
+	if sendLogRepo.created == nil || sendLogRepo.created.Status != domain.SendSent {
+		t.Fatal("expected in-app dispatch to create a sent log")
 	}
 
 	templateRepo.tmpl.Channel = domain.ChannelEmail
-	if _, err := messagingSvc.Dispatch(context.Background(), templateRepo.tmpl.ID, actorID, actorID, map[string]any{"x": 1}); err != nil {
+	if _, err := messagingSvc.Dispatch(context.Background(), templateRepo.tmpl.ID, actorID, nil, map[string]any{"x": 1}); err != nil {
 		t.Fatalf("Dispatch(email) error = %v", err)
 	}
 	if sendLogRepo.created.NextRetryAt == nil {
@@ -582,7 +609,7 @@ func TestExceptionAndMessagingServices(t *testing.T) {
 
 func TestBackupAndExportServices(t *testing.T) {
 	backupDir := t.TempDir()
-	backupSvc := NewBackupService("postgres://example", backupDir, nil)
+	backupSvc := NewBackupService("postgres://example", backupDir, "", nil)
 	if backups, err := backupSvc.ListBackups(context.Background()); err != nil || len(backups) != 0 {
 		t.Fatalf("ListBackups() = (%d, %v), want empty nil", len(backups), err)
 	}
@@ -625,6 +652,7 @@ func TestBackupAndExportServices(t *testing.T) {
 		&stubAuditRepo{},
 		encSvc,
 		tmp,
+		nil,
 	)
 	if err := exportSvc.GenerateExport(context.Background(), report.ID); err != nil {
 		t.Fatalf("GenerateExport() error = %v", err)

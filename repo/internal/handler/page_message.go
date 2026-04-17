@@ -10,6 +10,7 @@ import (
 
 	"github.com/fulfillops/fulfillops/internal/domain"
 	"github.com/fulfillops/fulfillops/internal/repository"
+	"github.com/fulfillops/fulfillops/internal/service"
 	"github.com/fulfillops/fulfillops/internal/view"
 	mview "github.com/fulfillops/fulfillops/internal/view/messages"
 	nview "github.com/fulfillops/fulfillops/internal/view/notifications"
@@ -20,6 +21,7 @@ type PageMessageHandler struct {
 	templateRepo repository.MessageTemplateRepository
 	sendLogRepo  repository.SendLogRepository
 	notifRepo    repository.NotificationRepository
+	auditSvc     service.AuditService
 }
 
 func NewPageMessageHandler(
@@ -36,13 +38,20 @@ func NewPageMessageHandler(
 	}
 }
 
+func (h *PageMessageHandler) WithAudit(auditSvc service.AuditService) *PageMessageHandler {
+	h.auditSvc = auditSvc
+	return h
+}
+
 func (h *PageMessageHandler) ListTemplates(c *gin.Context) {
 	ctx := c.Request.Context()
-	templates, _ := h.templateRepo.List(ctx, domain.TemplateCategory(""), domain.SendLogChannel(""), false)
+	category := domain.TemplateCategory(c.Query("category"))
+	channel := domain.SendLogChannel(c.Query("channel"))
+	templates, _ := h.templateRepo.List(ctx, category, channel, false)
 	renderPage(c, http.StatusOK, mview.TemplateList(pageCtx(c, h.store), mview.TemplateListData{
 		Templates:      templates,
-		CategoryFilter: c.Query("category"),
-		ChannelFilter:  c.Query("channel"),
+		CategoryFilter: string(category),
+		ChannelFilter:  string(channel),
 		IsAdmin:        isAdmin(c, h.store),
 	}))
 }
@@ -63,23 +72,28 @@ func (h *PageMessageHandler) ShowEditTemplate(c *gin.Context) {
 }
 
 func (h *PageMessageHandler) PostCreateTemplate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	t := &domain.MessageTemplate{
 		Name:         c.PostForm("name"),
 		Category:     domain.TemplateCategory(c.PostForm("category")),
 		Channel:      domain.SendLogChannel(c.PostForm("channel")),
 		BodyTemplate: c.PostForm("body_template"),
 	}
-	if _, err := h.templateRepo.Create(ctx, t); err != nil {
+	created, err := h.templateRepo.Create(ctx, t)
+	if err != nil {
 		redirectWithFlash(c, h.store, "/messages/templates/new", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "message_templates", created.ID, "CREATE", nil, created)
 	}
 	redirectWithFlash(c, h.store, "/messages", "success", "Template created.")
 }
 
 func (h *PageMessageHandler) PostUpdateTemplate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
+	before, _ := h.templateRepo.GetByID(ctx, id)
 	t := &domain.MessageTemplate{
 		ID:           id,
 		Name:         c.PostForm("name"),
@@ -88,31 +102,44 @@ func (h *PageMessageHandler) PostUpdateTemplate(c *gin.Context) {
 		BodyTemplate: c.PostForm("body_template"),
 		Version:      formInt(c, "version"),
 	}
-	if _, err := h.templateRepo.Update(ctx, t); err != nil {
+	updated, err := h.templateRepo.Update(ctx, t)
+	if err != nil {
 		redirectWithFlash(c, h.store, "/messages/templates/"+id.String()+"/edit", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "message_templates", id, "UPDATE", before, updated)
 	}
 	redirectWithFlash(c, h.store, "/messages", "success", "Template updated.")
 }
 
 func (h *PageMessageHandler) PostDeleteTemplate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
+	before, _ := h.templateRepo.GetByID(ctx, id)
 	if err := h.templateRepo.SoftDelete(ctx, id, deletedBy); err != nil {
 		redirectWithFlash(c, h.store, "/messages", "error", "Delete failed: "+err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "message_templates", id, "DELETE", before, map[string]any{"deleted_by": deletedBy})
 	}
 	redirectWithFlash(c, h.store, "/messages", "success", "Template deleted.")
 }
 
 func (h *PageMessageHandler) PostRestoreTemplate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	if err := h.templateRepo.Restore(ctx, id); err != nil {
 		redirectWithFlash(c, h.store, "/admin/recovery", "error", "Restore failed.")
 		return
+	}
+	if h.auditSvc != nil {
+		if restored, err := h.templateRepo.GetByID(ctx, id); err == nil {
+			_ = h.auditSvc.Log(ctx, "message_templates", id, "RESTORE", nil, restored)
+		}
 	}
 	redirectWithFlash(c, h.store, "/admin/recovery", "success", "Template restored.")
 }

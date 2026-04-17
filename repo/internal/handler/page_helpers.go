@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -9,11 +10,12 @@ import (
 	"github.com/gorilla/sessions"
 
 	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/service"
 	"github.com/fulfillops/fulfillops/internal/view"
 )
 
 const (
-	flashKey   = "flash_type"
+	flashKey    = "flash_type"
 	flashMsgKey = "flash_msg"
 )
 
@@ -83,4 +85,25 @@ func canEdit(c *gin.Context, store sessions.Store) bool {
 	role, _ := sess.Values["userRole"].(string)
 	r := domain.UserRole(role)
 	return r == domain.RoleAdministrator || r == domain.RoleFulfillmentSpecialist
+}
+
+func currentPageUserID(c *gin.Context, store sessions.Store) (uuid.UUID, bool) {
+	sess, _ := store.Get(c.Request, "fulfillops")
+	rawID, _ := sess.Values["userID"].(string)
+	if rawID == "" {
+		return uuid.UUID{}, false
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return uuid.UUID{}, false
+	}
+	return id, true
+}
+
+func pageRequestContextWithUser(c *gin.Context, store sessions.Store) context.Context {
+	ctx := c.Request.Context()
+	if userID, ok := currentPageUserID(c, store); ok {
+		ctx = service.WithUserID(ctx, userID)
+	}
+	return ctx
 }

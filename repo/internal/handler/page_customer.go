@@ -21,6 +21,7 @@ type PageCustomerHandler struct {
 	customerRepo repository.CustomerRepository
 	fulfillRepo  repository.FulfillmentRepository
 	encSvc       service.EncryptionService
+	auditSvc     service.AuditService
 }
 
 func NewPageCustomerHandler(
@@ -30,6 +31,11 @@ func NewPageCustomerHandler(
 	encSvc service.EncryptionService,
 ) *PageCustomerHandler {
 	return &PageCustomerHandler{store: store, customerRepo: customerRepo, fulfillRepo: fulfillRepo, encSvc: encSvc}
+}
+
+func (h *PageCustomerHandler) WithAudit(auditSvc service.AuditService) *PageCustomerHandler {
+	h.auditSvc = auditSvc
+	return h
 }
 
 func (h *PageCustomerHandler) List(c *gin.Context) {
@@ -135,7 +141,7 @@ func (h *PageCustomerHandler) ShowEdit(c *gin.Context) {
 }
 
 func (h *PageCustomerHandler) PostCreate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	cu := &domain.Customer{Name: c.PostForm("name")}
 	if p := c.PostForm("phone"); p != "" {
 		enc, err := h.encSvc.Encrypt([]byte(p))
@@ -161,15 +167,19 @@ func (h *PageCustomerHandler) PostCreate(c *gin.Context) {
 		}
 		cu.AddressEncrypted = enc
 	}
-	if _, err := h.customerRepo.Create(ctx, cu); err != nil {
+	created, err := h.customerRepo.Create(ctx, cu)
+	if err != nil {
 		redirectWithFlash(c, h.store, "/customers/new", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "customers", created.ID, "CREATE", nil, created)
 	}
 	redirectWithFlash(c, h.store, "/customers", "success", "Customer created.")
 }
 
 func (h *PageCustomerHandler) PostUpdate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 
 	existing, err := h.customerRepo.GetByID(ctx, id)
@@ -217,31 +227,44 @@ func (h *PageCustomerHandler) PostUpdate(c *gin.Context) {
 		cu.AddressEncrypted = existing.AddressEncrypted
 	}
 
-	if _, err := h.customerRepo.Update(ctx, cu); err != nil {
+	updated, err := h.customerRepo.Update(ctx, cu)
+	if err != nil {
 		redirectWithFlash(c, h.store, "/customers/"+id.String()+"/edit", "error", err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "customers", updated.ID, "UPDATE", existing, updated)
 	}
 	redirectWithFlash(c, h.store, "/customers/"+id.String(), "success", "Customer updated.")
 }
 
 func (h *PageCustomerHandler) PostDelete(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	sess, _ := h.store.Get(c.Request, "fulfillops")
 	deletedBy, _ := uuid.Parse(sess.Values["userID"].(string))
+	before, _ := h.customerRepo.GetByID(ctx, id)
 	if err := h.customerRepo.SoftDelete(ctx, id, deletedBy); err != nil {
 		redirectWithFlash(c, h.store, "/customers/"+id.String(), "error", "Delete failed: "+err.Error())
 		return
+	}
+	if h.auditSvc != nil {
+		_ = h.auditSvc.Log(ctx, "customers", id, "DELETE", before, map[string]any{"deleted_by": deletedBy})
 	}
 	redirectWithFlash(c, h.store, "/customers", "success", "Customer deleted.")
 }
 
 func (h *PageCustomerHandler) PostRestore(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := pageRequestContextWithUser(c, h.store)
 	id, _ := uuid.Parse(c.Param("id"))
 	if err := h.customerRepo.Restore(ctx, id); err != nil {
 		redirectWithFlash(c, h.store, "/admin/recovery", "error", "Restore failed.")
 		return
+	}
+	if h.auditSvc != nil {
+		if restored, err := h.customerRepo.GetByID(ctx, id); err == nil {
+			_ = h.auditSvc.Log(ctx, "customers", id, "RESTORE", nil, restored)
+		}
 	}
 	redirectWithFlash(c, h.store, "/admin/recovery", "success", "Customer restored.")
 }

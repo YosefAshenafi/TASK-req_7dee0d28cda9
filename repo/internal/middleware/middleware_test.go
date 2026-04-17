@@ -28,7 +28,7 @@ func addCookiesFromRecorder(req *http.Request, w *httptest.ResponseRecorder) {
 func TestSessionAuth_UnauthorizedWhenNoSession(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.SessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.SessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/x", nil))
@@ -40,7 +40,7 @@ func TestSessionAuth_UnauthorizedWhenNoSession(t *testing.T) {
 func TestSessionAuth_UnauthorizedMissingUserID(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.SessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.SessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops_session")
@@ -62,7 +62,7 @@ func TestSessionAuth_UnauthorizedMissingUserID(t *testing.T) {
 func TestSessionAuth_UnauthorizedBadUserIDType(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.SessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.SessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops_session")
@@ -84,7 +84,7 @@ func TestSessionAuth_UnauthorizedBadUserIDType(t *testing.T) {
 func TestSessionAuth_UnauthorizedInvalidUUID(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.SessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.SessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops_session")
@@ -107,7 +107,7 @@ func TestSessionAuth_OK(t *testing.T) {
 	store := testCookieStore()
 	uid := uuid.New()
 	r := gin.New()
-	r.GET("/x", middleware.SessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.SessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops_session")
@@ -185,7 +185,7 @@ func TestSetSessionAndClearSession(t *testing.T) {
 func TestPageSessionAuth_Redirects(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.PageSessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.PageSessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/x", nil))
 	if rr.Code != http.StatusSeeOther {
@@ -196,7 +196,7 @@ func TestPageSessionAuth_Redirects(t *testing.T) {
 func TestPageSessionAuth_RedirectsWhenUserIDMissing(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.PageSessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.PageSessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops")
@@ -215,7 +215,7 @@ func TestPageSessionAuth_RedirectsWhenUserIDMissing(t *testing.T) {
 func TestPageSessionAuth_OK(t *testing.T) {
 	store := testCookieStore()
 	r := gin.New()
-	r.GET("/x", middleware.PageSessionAuth(store), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/x", middleware.PageSessionAuth(store, nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	sess, _ := store.Get(req, "fulfillops")

@@ -2,6 +2,7 @@ package api_tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/repository"
 )
 
 func pageRequest(t *testing.T, cookie *http.Cookie, method, path string, form url.Values) *httptest.ResponseRecorder {
@@ -154,5 +158,37 @@ func TestPageReportDownloadAuthorization(t *testing.T) {
 		var body map[string]any
 		_ = json.Unmarshal(rr.Body.Bytes(), &body)
 		t.Fatalf("unexpected download status: %d body=%v", rr.Code, body)
+	}
+}
+
+func TestPageReportCreate_WritesAuditRecord(t *testing.T) {
+	pageCookie := mustPageLogin(t)
+	auditRepo := repository.NewAuditRepository(testPool)
+	before, _, err := auditRepo.List(context.Background(), repository.AuditFilters{
+		TableName: "report_exports",
+		Operation: "CREATE",
+	}, domain.PageRequest{Page: 1, PageSize: 200})
+	if err != nil {
+		t.Fatalf("audit list before: %v", err)
+	}
+
+	rr := pageRequest(t, pageCookie, http.MethodPost, "/reports/exports", url.Values{
+		"report_type": {"audit"},
+		"date_from":   {"2026-01-01"},
+		"date_to":     {"2026-01-31"},
+	})
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("page export create => %d %s", rr.Code, rr.Body.String())
+	}
+
+	after, _, err := auditRepo.List(context.Background(), repository.AuditFilters{
+		TableName: "report_exports",
+		Operation: "CREATE",
+	}, domain.PageRequest{Page: 1, PageSize: 200})
+	if err != nil {
+		t.Fatalf("audit list after: %v", err)
+	}
+	if len(after) <= len(before) {
+		t.Fatal("expected new audit row for page export creation")
 	}
 }
