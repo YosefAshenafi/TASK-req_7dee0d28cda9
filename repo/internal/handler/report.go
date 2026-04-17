@@ -47,24 +47,17 @@ func (h *ReportHandler) List(c *gin.Context) {
 	pr := domain.PageRequest{Page: page, PageSize: pageSize}
 	pr.Normalize()
 
-	exports, total, err := h.reportRepo.List(c.Request.Context(), pr)
+	// Visibility filter is applied inside the repository so the total and the
+	// page slice agree — otherwise sensitive rows consume page slots on non-
+	// admin requests and pagination totals become incoherent.
+	roleRaw, _ := c.Get("userRole")
+	role, _ := roleRaw.(domain.UserRole)
+	filters := repository.ReportExportFilters{SensitiveVisible: role == domain.RoleAdministrator}
+
+	exports, total, err := h.reportRepo.List(c.Request.Context(), filters, pr)
 	if err != nil {
 		middleware.DomainErrorToHTTP(c, err)
 		return
-	}
-
-	// Non-admins cannot see sensitive exports in the list.
-	roleRaw, _ := c.Get("userRole")
-	role, _ := roleRaw.(domain.UserRole)
-	if role != domain.RoleAdministrator {
-		filtered := make([]domain.ReportExport, 0, len(exports))
-		for _, e := range exports {
-			if !e.IncludeSensitive {
-				filtered = append(filtered, e)
-			}
-		}
-		exports = filtered
-		total = len(filtered)
 	}
 
 	c.JSON(http.StatusOK, domain.PageResponse[domain.ReportExport]{

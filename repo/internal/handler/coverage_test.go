@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/sessions"
 
 	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/repository"
 	"github.com/fulfillops/fulfillops/internal/service"
 )
 
@@ -42,7 +43,7 @@ func (r *sensitiveReportRepo) GetByID(_ context.Context, id uuid.UUID) (*domain.
 	cp.ID = id
 	return &cp, nil
 }
-func (r *sensitiveReportRepo) List(context.Context, domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (r *sensitiveReportRepo) List(context.Context, repository.ReportExportFilters, domain.PageRequest) ([]domain.ReportExport, int, error) {
 	return nil, 0, nil
 }
 func (r *sensitiveReportRepo) UpdateStatus(context.Context, uuid.UUID, domain.ExportStatus, *string, *int64, *string, *time.Time) error {

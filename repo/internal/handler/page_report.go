@@ -99,19 +99,10 @@ func (h *PageReportHandler) ShowHistory(c *gin.Context) {
 	ctx := c.Request.Context()
 	page := queryInt(c, "page", 1)
 	const size = 20
-	exports, total, _ := h.reportRepo.List(ctx, domain.PageRequest{Page: page, PageSize: size})
-
-	// Filter sensitive exports from non-admins.
-	if !isAdmin(c, h.store) {
-		filtered := make([]domain.ReportExport, 0, len(exports))
-		for _, e := range exports {
-			if !e.IncludeSensitive {
-				filtered = append(filtered, e)
-			}
-		}
-		exports = filtered
-		total = len(filtered)
-	}
+	// Filter sensitive exports from non-admins at the repository level so the
+	// total count and the page slice are consistent.
+	filters := repository.ReportExportFilters{SensitiveVisible: isAdmin(c, h.store)}
+	exports, total, _ := h.reportRepo.List(ctx, filters, domain.PageRequest{Page: page, PageSize: size})
 
 	renderPage(c, http.StatusOK, rview.History(pageCtx(c, h.store), rview.HistoryData{
 		Exports: exports,

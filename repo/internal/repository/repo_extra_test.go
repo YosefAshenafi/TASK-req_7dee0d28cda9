@@ -791,7 +791,7 @@ func TestClosedPool_ErrorPaths(t *testing.T) {
 	reRepo := repository.NewReportExportRepository(pool)
 	_, _ = reRepo.Create(ctx, &domain.ReportExport{ReportType: "x", Filters: []byte(`{}`), Status: domain.ExportQueued})
 	_, _ = reRepo.GetByID(ctx, id)
-	_, _, _ = reRepo.List(ctx, domain.PageRequest{Page: 1, PageSize: 10})
+	_, _, _ = reRepo.List(ctx, repository.ReportExportFilters{SensitiveVisible: true}, domain.PageRequest{Page: 1, PageSize: 10})
 	_ = reRepo.UpdateStatus(ctx, id, domain.ExportCompleted, nil, nil, nil, nil)
 	_, _ = reRepo.GetExpired(ctx, time.Now().UTC())
 	_ = reRepo.Delete(ctx, id)

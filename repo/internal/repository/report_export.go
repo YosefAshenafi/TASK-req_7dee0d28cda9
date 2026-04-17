@@ -13,10 +13,20 @@ import (
 	"github.com/fulfillops/fulfillops/internal/domain"
 )
 
+// ReportExportFilters scope a report export listing. IncludeSensitiveOnly=false
+// plus sensitiveVisible=false lets the repository exclude sensitive rows from
+// both the rows returned and the total count so pagination totals match what
+// the caller actually sees.
+type ReportExportFilters struct {
+	// SensitiveVisible == true: sensitive rows are included (admin view).
+	// false: sensitive rows are filtered out of both the page and the total.
+	SensitiveVisible bool
+}
+
 type ReportExportRepository interface {
 	Create(ctx context.Context, e *domain.ReportExport) (*domain.ReportExport, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.ReportExport, error)
-	List(ctx context.Context, page domain.PageRequest) ([]domain.ReportExport, int, error)
+	List(ctx context.Context, filters ReportExportFilters, page domain.PageRequest) ([]domain.ReportExport, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ExportStatus, filePath *string, fileSize *int64, checksum *string, expiresAt *time.Time) error
 	GetExpired(ctx context.Context, now time.Time) ([]domain.ReportExport, error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -58,14 +68,18 @@ func (r *pgReportExportRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	return &e, err
 }
 
-func (r *pgReportExportRepo) List(ctx context.Context, page domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (r *pgReportExportRepo) List(ctx context.Context, f ReportExportFilters, page domain.PageRequest) ([]domain.ReportExport, int, error) {
 	page.Normalize()
+	where := ""
+	if !f.SensitiveVisible {
+		where = ` WHERE include_sensitive = FALSE`
+	}
 	var total int
-	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM report_exports`).Scan(&total); err != nil {
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM report_exports`+where).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := r.pool.Query(ctx,
-		`SELECT `+exportCols+` FROM report_exports ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+		`SELECT `+exportCols+` FROM report_exports`+where+` ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 		page.PageSize, page.Offset())
 	if err != nil {
 		return nil, 0, err

@@ -338,7 +338,7 @@ func (s *stubReportRepo) GetByID(context.Context, uuid.UUID) (*domain.ReportExpo
 	return s.export, nil
 }
 
-func (s *stubReportRepo) List(context.Context, domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (s *stubReportRepo) List(context.Context, repository.ReportExportFilters, domain.PageRequest) ([]domain.ReportExport, int, error) {
 	return nil, 0, nil
 }
 

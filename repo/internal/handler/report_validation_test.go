@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fulfillops/fulfillops/internal/domain"
+	"github.com/fulfillops/fulfillops/internal/repository"
 )
 
 // stubReportRepo is a minimal ReportExportRepository for handler unit tests.
@@ -34,7 +35,7 @@ func (r *stubReportRepo) GetByID(context.Context, uuid.UUID) (*domain.ReportExpo
 	return nil, domain.NewNotFoundError("report")
 }
 
-func (r *stubReportRepo) List(context.Context, domain.PageRequest) ([]domain.ReportExport, int, error) {
+func (r *stubReportRepo) List(context.Context, repository.ReportExportFilters, domain.PageRequest) ([]domain.ReportExport, int, error) {
 	return nil, 0, nil
 }
 
