@@ -110,6 +110,13 @@ func buildRouter(dbURL string) *gin.Engine {
 	store := sessions.NewCookieStore([]byte("testsessionsecretchars32bytes000"))
 	store.Options = &sessions.Options{Path: "/", MaxAge: 86400 * 7, HttpOnly: true}
 
+	// Match docker-compose defaults: first active admin is created by the real server at
+	// startup via BootstrapAdmin. Tests build the router in-process and must do the same
+	// so POST /api/v1/auth/login succeeds (migrations only add the inactive system actor).
+	if err := userSvc.BootstrapAdmin(context.Background(), "admin", "admin@fulfillops.local", "Admin@FulfillOps1"); err != nil {
+		panic(fmt.Sprintf("bootstrap admin: %v", err))
+	}
+
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })

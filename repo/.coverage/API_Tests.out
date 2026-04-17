@@ -828,7 +828,7 @@ github.com/fulfillops/fulfillops/internal/repository/user.go:75.16,77.3 1 0
 github.com/fulfillops/fulfillops/internal/repository/user.go:78.2,78.66 1 1
 github.com/fulfillops/fulfillops/internal/repository/user.go:81.88,91.2 5 1
 github.com/fulfillops/fulfillops/internal/repository/user.go:93.109,99.2 3 0
-github.com/fulfillops/fulfillops/internal/repository/user.go:101.90,106.2 3 0
+github.com/fulfillops/fulfillops/internal/repository/user.go:101.90,106.2 3 1
 github.com/fulfillops/fulfillops/internal/repository/user.go:108.88,114.16 3 1
 github.com/fulfillops/fulfillops/internal/repository/user.go:114.16,116.3 1 0
 github.com/fulfillops/fulfillops/internal/repository/user.go:117.2,117.29 1 1

@@ -106,6 +106,12 @@ func buildRouter(dbURL string) *gin.Engine {
 	store := sessions.NewCookieStore([]byte("testsessionsecretchars32bytes000"))
 	store.Options = &sessions.Options{Path: "/", MaxAge: 86400 * 7, HttpOnly: true}
 
+	// See API_tests/setup_test.go — ensure loginable admin exists (BootstrapAdmin is a no-op
+	// once an active administrator is present).
+	if err := userSvc.BootstrapAdmin(context.Background(), "admin", "admin@fulfillops.local", "Admin@FulfillOps1"); err != nil {
+		panic(fmt.Sprintf("bootstrap admin: %v", err))
+	}
+
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
