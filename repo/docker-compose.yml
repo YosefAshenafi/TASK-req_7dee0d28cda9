@@ -30,6 +30,8 @@ services:
       FULFILLOPS_PORT: 8080
       FULFILLOPS_SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-prod!!}
       GIN_MODE: ${GIN_MODE:-debug}
+      FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@fulfillops.local}
+      FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-Admin@FulfillOps1}
     ports:
       - "8080:8080"
     volumes:

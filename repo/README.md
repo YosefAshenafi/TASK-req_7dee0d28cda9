@@ -40,7 +40,8 @@ Open **http://localhost:8080/auth/login**
 
 On first start the entrypoint auto-generates a 32-byte AES-256 key at `/app/keystore/encryption.key`
 (persisted in the `app_key` Docker volume). The administrator account is created automatically on startup
-from the bootstrap env vars in `docker/docker-compose.yml` — this is a no-op if an administrator already exists.
+from the `FULFILLOPS_BOOTSTRAP_ADMIN_EMAIL` / `FULFILLOPS_BOOTSTRAP_ADMIN_PASSWORD` env vars in `docker-compose.yml`
+— this is a no-op if an administrator already exists.
 
 ### Stop
 
@@ -53,33 +54,42 @@ docker compose down -v       # also delete all data
 
 ## Demo Credentials
 
-The administrator account is seeded automatically on first startup from env vars in `docker/docker-compose.yml`:
+### Auto-seeded on first startup
 
-| Role                   | Username      | Email                        | Password          |
-|------------------------|---------------|------------------------------|-------------------|
-| Administrator          | `admin`       | `admin@fulfillops.local`     | `Admin@FulfillOps1` |
-| Fulfillment Specialist | `specialist`  | `specialist@fulfillops.local`| `Spec@Demo1!`     |
-| Auditor                | `auditor`     | `auditor@fulfillops.local`   | `Audit@Demo1!`    |
+The administrator account is created automatically from the bootstrap env vars in `docker-compose.yml`. It is ready immediately after `docker-compose up` completes.
 
-After the first `docker-compose up`, run the following **once** to seed the specialist and auditor accounts:
+| Role          | Username | Email                    | Password            |
+|---------------|----------|--------------------------|---------------------|
+| Administrator | `admin`  | `admin@fulfillops.local` | `Admin@FulfillOps1` |
+
+### Requires one-time manual seeding
+
+The specialist and auditor accounts do **not** exist until you run the commands below. Run these once after the first `docker-compose up`:
 
 ```bash
-# 1. Login as admin and capture the session cookie
+# 1. Login and save the session cookie
 curl -sc /tmp/fo_seed.jar http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin@FulfillOps1"}'
-COOKIE=$(grep fulfillops_session /tmp/fo_seed.jar | awk '{print $NF}')
 
 # 2. Create the fulfillment specialist account
-curl -b "fulfillops_session=$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+curl -sb /tmp/fo_seed.jar -X POST http://localhost:8080/api/v1/admin/users \
   -H "Content-Type: application/json" \
   -d '{"username":"specialist","email":"specialist@fulfillops.local","password":"Spec@Demo1!","role":"FULFILLMENT_SPECIALIST"}'
 
 # 3. Create the auditor account
-curl -b "fulfillops_session=$COOKIE" -X POST http://localhost:8080/api/v1/admin/users \
+curl -sb /tmp/fo_seed.jar -X POST http://localhost:8080/api/v1/admin/users \
   -H "Content-Type: application/json" \
   -d '{"username":"auditor","email":"auditor@fulfillops.local","password":"Audit@Demo1!","role":"AUDITOR"}'
 ```
+
+Once seeded, all three accounts are available:
+
+| Role                   | Username     | Email                         | Password      |
+|------------------------|--------------|-------------------------------|---------------|
+| Administrator          | `admin`      | `admin@fulfillops.local`      | `Admin@FulfillOps1` |
+| Fulfillment Specialist | `specialist` | `specialist@fulfillops.local` | `Spec@Demo1!` |
+| Auditor                | `auditor`    | `auditor@fulfillops.local`    | `Audit@Demo1!` |
 
 ---
 
@@ -94,7 +104,14 @@ curl -sf http://localhost:8080/healthz
 # → {"status":"ok"}
 ```
 
-### Step 2 — Login as admin and capture the session cookie
+### Step 2 — Confirm the login page renders
+
+```bash
+curl -sf http://localhost:8080/auth/login | grep -q 'action=' && echo "UI ok"
+# → UI ok
+```
+
+### Step 3 — Login as admin and capture the session cookie
 
 ```bash
 curl -sc /tmp/admin.cookie http://localhost:8080/api/v1/auth/login \
@@ -103,38 +120,36 @@ curl -sc /tmp/admin.cookie http://localhost:8080/api/v1/auth/login \
 # → HTTP 200  {"id":"...","username":"admin","role":"ADMINISTRATOR"}
 ```
 
-### Step 3 — Create a reward tier
+### Step 4 — Create a reward tier
 
 ```bash
 curl -sb /tmp/admin.cookie -X POST http://localhost:8080/api/v1/tiers \
   -H "Content-Type: application/json" \
   -d '{"name":"Gold","inventory_count":100,"purchase_limit":5,"alert_threshold":10}'
 # → HTTP 201  {"id":"<tier-id>","name":"Gold",...}
-TIER_ID=$(curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/tiers | \
-  python3 -c "import sys,json; print(json.load(sys.stdin)['items'][0]['id'])")
 ```
 
-### Step 4 — List tiers and confirm the new record appears
+### Step 5 — List tiers and confirm the new record appears
 
 ```bash
 curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/tiers
 # → HTTP 200  {"items":[{"id":"<tier-id>","name":"Gold",...}],"total":1,...}
 ```
 
-### Step 5 — Verify admin health
+### Step 6 — Verify admin health
 
 ```bash
 curl -sb /tmp/admin.cookie http://localhost:8080/api/v1/admin/health
 # → HTTP 200  {"status":"ok","checks":{"database":"ok","encryption":"ok",...}}
 ```
 
-**Expected outcomes**: all five curl calls return the documented HTTP status; `/healthz` and `/api/v1/admin/health` both show `"status":"ok"`.
+**Expected outcomes**: all six curl calls return the documented HTTP status; `/healthz` and `/api/v1/admin/health` both show `"status":"ok"`; the login page check prints `UI ok`.
 
 ---
 
 ## Environment Variables
 
-All defaults below are sourced from `docker/docker-compose.yml`.
+All defaults below are sourced from `docker-compose.yml` (at the repo root, used by the documented `docker-compose up`).
 
 | Variable | Default (docker-compose) | Description |
 |---|---|---|
