@@ -75,6 +75,8 @@ func buildRouter(dbURL string) *gin.Engine {
 	blackoutRepo := repository.NewBlackoutDateRepository(testPool)
 	jobRunRepo := repository.NewJobRunRepository(testPool)
 	userRepo := repository.NewUserRepository(testPool)
+	jobScheduleRepo := repository.NewJobScheduleRepository(testPool)
+	drDrillRepo := repository.NewDRDrillRepository(testPool)
 
 	txMgr := repository.NewTxManager(testPool)
 	auditSvc := service.NewAuditService(auditRepo)
@@ -121,6 +123,7 @@ func buildRouter(dbURL string) *gin.Engine {
 		TemplateRepo: templateRepo, SendLogRepo: sendLogRepo, NotifRepo: notifRepo,
 		ReportRepo: reportRepo, AuditRepo: auditRepo, SettingRepo: settingRepo,
 		BlackoutRepo: blackoutRepo, JobRunRepo: jobRunRepo, UserRepo: userRepo,
+		JobScheduleRepo: jobScheduleRepo, DRDrillRepo: drDrillRepo,
 	})
 	return r
 }
