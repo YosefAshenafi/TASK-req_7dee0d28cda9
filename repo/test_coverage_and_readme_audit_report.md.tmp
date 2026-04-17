@@ -1,0 +1,606 @@
+# Test Coverage Audit
+
+## Scope and Project Type
+
+- Project type declared in [README.md](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md): `fullstack`
+- Basis for classification: Go backend under `internal/`, server-rendered page routes in [internal/handler/router.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/router.go), and frontend JS/tests under [static/js/app.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.js) and [static/js/app.test.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.test.js)
+- Inspection mode: static only. No code, tests, builds, or containers were executed.
+- Counting rule used for coverage percentages: API endpoints plus `/healthz` only. Server-rendered page routes are tracked separately because the prompt's API coverage rules are HTTP API-specific.
+
+## Backend Endpoint Inventory
+
+### API Endpoints Counted for Coverage
+
+Total counted endpoints: **64**
+
+1. `GET /healthz`
+2. `POST /api/v1/auth/login`
+3. `POST /api/v1/auth/logout`
+4. `GET /api/v1/auth/me`
+5. `GET /api/v1/tiers`
+6. `POST /api/v1/tiers`
+7. `GET /api/v1/tiers/:id`
+8. `PUT /api/v1/tiers/:id`
+9. `DELETE /api/v1/tiers/:id`
+10. `POST /api/v1/tiers/:id/restore`
+11. `GET /api/v1/customers`
+12. `POST /api/v1/customers`
+13. `GET /api/v1/customers/:id`
+14. `PUT /api/v1/customers/:id`
+15. `DELETE /api/v1/customers/:id`
+16. `POST /api/v1/customers/:id/restore`
+17. `GET /api/v1/fulfillments`
+18. `POST /api/v1/fulfillments`
+19. `GET /api/v1/fulfillments/:id`
+20. `POST /api/v1/fulfillments/:id/transition`
+21. `PUT /api/v1/fulfillments/:id/shipping-address`
+22. `GET /api/v1/fulfillments/:id/timeline`
+23. `DELETE /api/v1/fulfillments/:id`
+24. `POST /api/v1/fulfillments/:id/restore`
+25. `GET /api/v1/exceptions`
+26. `POST /api/v1/exceptions`
+27. `GET /api/v1/exceptions/:id`
+28. `PUT /api/v1/exceptions/:id/status`
+29. `POST /api/v1/exceptions/:id/events`
+30. `GET /api/v1/message-templates`
+31. `POST /api/v1/message-templates`
+32. `GET /api/v1/message-templates/:id`
+33. `PUT /api/v1/message-templates/:id`
+34. `DELETE /api/v1/message-templates/:id`
+35. `GET /api/v1/send-logs`
+36. `PUT /api/v1/send-logs/:id/printed`
+37. `PUT /api/v1/send-logs/:id/failed`
+38. `GET /api/v1/notifications`
+39. `PUT /api/v1/notifications/:id/read`
+40. `POST /api/v1/dispatch`
+41. `GET /api/v1/reports/exports`
+42. `POST /api/v1/reports/exports`
+43. `GET /api/v1/reports/exports/:id`
+44. `POST /api/v1/reports/exports/:id/verify-checksum`
+45. `DELETE /api/v1/reports/exports/:id`
+46. `GET /api/v1/settings`
+47. `PUT /api/v1/settings/:key`
+48. `GET /api/v1/settings/blackout-dates`
+49. `POST /api/v1/settings/blackout-dates`
+50. `DELETE /api/v1/settings/blackout-dates/:id`
+51. `GET /api/v1/audit`
+52. `GET /api/v1/admin/health`
+53. `GET /api/v1/admin/jobs/runs`
+54. `POST /api/v1/admin/jobs/:name/run`
+55. `GET /api/v1/admin/job-schedules`
+56. `PUT /api/v1/admin/job-schedules/:key`
+57. `GET /api/v1/admin/dr-drills`
+58. `POST /api/v1/admin/dr-drills`
+59. `PUT /api/v1/admin/dr-drills/:id`
+60. `GET /api/v1/admin/users`
+61. `POST /api/v1/admin/users`
+62. `GET /api/v1/admin/users/:id`
+63. `PUT /api/v1/admin/users/:id`
+64. `DELETE /api/v1/admin/users/:id`
+
+### Server-Rendered Page Routes Observed but Excluded from API Coverage %
+
+- Present in [internal/handler/router.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/router.go)
+- Covered partially by [API_tests/pages_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/pages_api_test.go) and [e2e_tests/pages_e2e_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/e2e_tests/pages_e2e_test.go)
+- Coverage is GET-heavy smoke coverage; many state-changing page POST/PUT routes remain unexercised
+
+## API Test Mapping Table
+
+| Endpoint | Covered | Test type | Test files | Evidence |
+|---|---|---|---|---|
+| `GET /healthz` | yes | true no-mock HTTP | `API_tests/auth_api_test.go`, `integration/integration_test.go` | `TestHealthz`; shared real router in `API_tests/setup_test.go::buildRouter` |
+| `POST /api/v1/auth/login` | yes | true no-mock HTTP | `API_tests/auth_api_test.go` | `TestAuthLogin_Success`, `TestAuthLogin_WrongPassword` |
+| `POST /api/v1/auth/logout` | yes | true no-mock HTTP | `API_tests/auth_api_test.go`, `API_tests/audit_fixes_api_test.go` | `TestAuthLogout`, `TestLogout_ClearsBothCookies` |
+| `GET /api/v1/auth/me` | yes | true no-mock HTTP | `API_tests/auth_api_test.go` | `TestAuthMe_Authenticated`, `TestAuthMe_Unauthenticated` |
+| `GET /api/v1/tiers` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go`, `e2e_tests/rbac_e2e_test.go` | `TestTiersList`, `TestRBAC_SpecialistCanReadButNotDeleteTiers` |
+| `POST /api/v1/tiers` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go` | `TestTiersCreate`, `TestTiersCreate_MissingName` |
+| `GET /api/v1/tiers/:id` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go` | `TestTiersGet`, `TestTiersGet_NotFound` |
+| `PUT /api/v1/tiers/:id` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go`, `e2e_tests/inventory_e2e_test.go` | `TestTiersUpdate`, `TestTiersUpdate_VersionConflict` |
+| `DELETE /api/v1/tiers/:id` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go`, `integration/integration_test.go` | `TestTiersSoftDeleteAndRestore`, `TestTiersDelete_NotFound` |
+| `POST /api/v1/tiers/:id/restore` | yes | true no-mock HTTP | `API_tests/tiers_api_test.go`, `integration/integration_test.go` | `TestTiersSoftDeleteAndRestore` |
+| `GET /api/v1/customers` | yes | true no-mock HTTP | `API_tests/customers_api_test.go` | `TestCustomersList` |
+| `POST /api/v1/customers` | yes | true no-mock HTTP | `API_tests/customers_api_test.go` | `TestCustomersCreate`, `TestCustomersCreate_MissingName` |
+| `GET /api/v1/customers/:id` | yes | true no-mock HTTP | `API_tests/customers_api_test.go` | `TestCustomersGet`, `TestCustomersGet_NotFound` |
+| `PUT /api/v1/customers/:id` | yes | true no-mock HTTP | `API_tests/customers_api_test.go`, `API_tests/audit_fixes_api_test.go` | `TestCustomersUpdate`, `TestCustomerUpdate_NameOnlyPreservesEncryptedFields` |
+| `DELETE /api/v1/customers/:id` | yes | true no-mock HTTP | `API_tests/customers_api_test.go` | `TestCustomersSoftDeleteAndRestore` |
+| `POST /api/v1/customers/:id/restore` | yes | true no-mock HTTP | `API_tests/customers_api_test.go` | `TestCustomersSoftDeleteAndRestore` |
+| `GET /api/v1/fulfillments` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go` | `TestFulfillmentsList` |
+| `POST /api/v1/fulfillments` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go`, `integration/integration_test.go` | `TestFulfillmentsCreate`, `TestFulfillmentLifecycle` |
+| `GET /api/v1/fulfillments/:id` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go` | `TestFulfillmentsGet`, helper `apiTransition` |
+| `POST /api/v1/fulfillments/:id/transition` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go`, `integration/integration_test.go`, `e2e_tests/lifecycle_e2e_test.go` | `TestFulfillmentsTransition_DraftToReadyToShip`, `TestFulfillmentLifecycle` |
+| `PUT /api/v1/fulfillments/:id/shipping-address` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go` | `TestFulfillmentShippingAddressUpdate_VersionConflict` |
+| `GET /api/v1/fulfillments/:id/timeline` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go`, `integration/integration_test.go` | `TestFulfillmentsTimeline`, `TestFulfillmentLifecycle` |
+| `DELETE /api/v1/fulfillments/:id` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go` | `TestFulfillmentsSoftDelete`, `TestFulfillmentsRestore` |
+| `POST /api/v1/fulfillments/:id/restore` | yes | true no-mock HTTP | `API_tests/fulfillments_api_test.go` | `TestFulfillmentsRestore` |
+| `GET /api/v1/exceptions` | yes | true no-mock HTTP | `API_tests/exceptions_api_test.go` | `TestExceptionsList` |
+| `POST /api/v1/exceptions` | yes | true no-mock HTTP | `API_tests/exceptions_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestExceptionsCreate`, `TestExceptionWorkflow` |
+| `GET /api/v1/exceptions/:id` | yes | true no-mock HTTP | `API_tests/exceptions_api_test.go` | `TestExceptionsGet`, `TestExceptionsGet_NotFound` |
+| `PUT /api/v1/exceptions/:id/status` | yes | true no-mock HTTP | `API_tests/exceptions_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestExceptionsUpdateStatus_Investigating`, `TestExceptionsUpdateStatus_Resolved`, `TestExceptionWorkflow` |
+| `POST /api/v1/exceptions/:id/events` | yes | true no-mock HTTP | `API_tests/exceptions_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestExceptionsAddEvent`, `TestExceptionWorkflow` |
+| `GET /api/v1/message-templates` | yes | true no-mock HTTP | `API_tests/message_templates_api_test.go` | `TestMessageTemplatesList`, `TestMessageTemplates_AuditorForbidden` |
+| `POST /api/v1/message-templates` | yes | true no-mock HTTP | `API_tests/message_templates_api_test.go` | helper `createTemplate` used by `TestMessageTemplatesList` and peers |
+| `GET /api/v1/message-templates/:id` | yes | true no-mock HTTP | `API_tests/message_templates_api_test.go` | `TestMessageTemplatesGet`, `TestMessageTemplates_SpecialistCanRead` |
+| `PUT /api/v1/message-templates/:id` | yes | true no-mock HTTP | `API_tests/message_templates_api_test.go` | `TestMessageTemplatesUpdate`, `TestMessageTemplatesUpdate_VersionConflict` |
+| `DELETE /api/v1/message-templates/:id` | yes | true no-mock HTTP | `API_tests/message_templates_api_test.go` | `TestMessageTemplatesDelete`, `TestMessageTemplates_SpecialistCannotWrite` |
+| `GET /api/v1/send-logs` | yes | true no-mock HTTP | `API_tests/remediation_coverage_test.go`, `API_tests/audit_fixes_api_test.go` | `TestSendLog_Queued_MarkFailed_RetryCycle`, `TestAuditor_CannotReadSendLogs` |
+| `PUT /api/v1/send-logs/:id/printed` | yes | true no-mock HTTP | `API_tests/remediation_coverage_test.go` | `TestSendLog_MarkPrinted` |
+| `PUT /api/v1/send-logs/:id/failed` | yes | true no-mock HTTP | `API_tests/remediation_coverage_test.go` | `TestSendLog_Queued_MarkFailed_RetryCycle`, `TestSendLog_MarkFailed_ForbiddenForAuditor` |
+| `GET /api/v1/notifications` | yes | true no-mock HTTP | `API_tests/notifications_api_test.go` | `TestNotificationsList`, `TestNotificationsList_UnreadFilter` |
+| `PUT /api/v1/notifications/:id/read` | yes | true no-mock HTTP | `API_tests/notifications_api_test.go` | `TestNotificationsMarkRead`, `TestNotificationsMarkRead_InvalidID` |
+| `POST /api/v1/dispatch` | yes | true no-mock HTTP | `API_tests/remediation_coverage_test.go` | `TestSendLog_Queued_MarkFailed_RetryCycle`, `TestSendLog_MarkPrinted` |
+| `GET /api/v1/reports/exports` | yes | true no-mock HTTP | `API_tests/reports_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestReportsList`, `TestExportWorkflow_MultipleExportsAreListed` |
+| `POST /api/v1/reports/exports` | yes | true no-mock HTTP | `API_tests/reports_api_test.go`, `API_tests/audit_fixes_api_test.go` | `TestReportsCreate`, `TestReportsCreate_InvalidTypeRejectedSynchronously` |
+| `GET /api/v1/reports/exports/:id` | yes | true no-mock HTTP | `API_tests/reports_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestReportsGet`, `TestExportWorkflow_CreateAndVerifyChecksum` |
+| `POST /api/v1/reports/exports/:id/verify-checksum` | yes | true no-mock HTTP | `API_tests/reports_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestReportsVerifyChecksum_AfterCompletion`, `TestExportWorkflow_CreateAndVerifyChecksum` |
+| `DELETE /api/v1/reports/exports/:id` | yes | true no-mock HTTP | `API_tests/reports_api_test.go` | `TestReportsDelete` |
+| `GET /api/v1/settings` | yes | true no-mock HTTP | `e2e_tests/exports_e2e_test.go` | `TestSettingsGetAll` |
+| `PUT /api/v1/settings/:key` | yes | true no-mock HTTP | `API_tests/settings_api_test.go` | `TestSettingsSet`, `TestSettingsSet_SpecialistForbidden`, `TestSettingsSet_AuditorForbidden` |
+| `GET /api/v1/settings/blackout-dates` | yes | true no-mock HTTP | `API_tests/settings_api_test.go` | `TestSettingsBlackoutDatesList`, `TestSettingsBlackoutDatesList_SpecialistAllowed` |
+| `POST /api/v1/settings/blackout-dates` | yes | true no-mock HTTP | `API_tests/settings_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestSettingsBlackoutDatesList`, `TestBlackoutDatesCreateAndDelete` |
+| `DELETE /api/v1/settings/blackout-dates/:id` | yes | true no-mock HTTP | `API_tests/settings_api_test.go`, `e2e_tests/exports_e2e_test.go` | `TestSettingsBlackoutDatesList`, `TestBlackoutDatesCreateAndDelete` |
+| `GET /api/v1/audit` | yes | true no-mock HTTP | `API_tests/audit_api_test.go`, `e2e_tests/rbac_e2e_test.go` | `TestAuditList`, `TestRBAC_AuditorCanReadAuditButNotCreateTier` |
+| `GET /api/v1/admin/health` | yes | true no-mock HTTP | `API_tests/admin_api_test.go`, `e2e_tests/rbac_e2e_test.go` | `TestAdminHealth`, `TestAdminHealth_SpecialistForbidden`, `TestAdminHealth_AuditorForbidden` |
+| `GET /api/v1/admin/jobs/runs` | yes | true no-mock HTTP | `API_tests/remediation_coverage_test.go` | `TestAdminJobHistory_SurfacesFailedRunWithError` |
+| `POST /api/v1/admin/jobs/:name/run` | yes | true no-mock HTTP | `API_tests/admin_api_test.go` | `TestAdminTriggerJob` |
+| `GET /api/v1/admin/job-schedules` | yes | true no-mock HTTP | `API_tests/admin_api_test.go`, `API_tests/remediation_coverage_test.go` | `TestAdminJobSchedulesList`, `TestAdminSchedules_ForbiddenForSpecialist` |
+| `PUT /api/v1/admin/job-schedules/:key` | yes | true no-mock HTTP | `API_tests/admin_api_test.go` | `TestAdminJobScheduleUpdate`, `TestAdminJobScheduleUpdate_VersionConflict` |
+| `GET /api/v1/admin/dr-drills` | yes | true no-mock HTTP | `API_tests/admin_api_test.go`, `API_tests/remediation_coverage_test.go` | `TestAdminDRDrillsList`, `TestAdminDRDrills_ForbiddenForSpecialist` |
+| `POST /api/v1/admin/dr-drills` | yes | true no-mock HTTP | `API_tests/admin_api_test.go` | `TestAdminDRDrillCreate`, `TestAdminDRDrillCreate_MissingScheduledFor` |
+| `PUT /api/v1/admin/dr-drills/:id` | yes | true no-mock HTTP | `API_tests/admin_api_test.go` | `TestAdminDRDrillUpdate`, `TestAdminDRDrillUpdate_InvalidOutcome` |
+| `GET /api/v1/admin/users` | yes | true no-mock HTTP | `API_tests/users_api_test.go` | `TestUsersList`, `TestUsers_RequiresAdminRole` |
+| `POST /api/v1/admin/users` | yes | true no-mock HTTP | `API_tests/users_api_test.go` | `TestUsersCreate`, `TestUsersCreate_DuplicateUsername`, `TestUsersCreate_InvalidRole` |
+| `GET /api/v1/admin/users/:id` | yes | true no-mock HTTP | `API_tests/users_api_test.go` | `TestUsersGet` |
+| `PUT /api/v1/admin/users/:id` | yes | true no-mock HTTP | `API_tests/users_api_test.go` | `TestUsersUpdate` |
+| `DELETE /api/v1/admin/users/:id` | yes | true no-mock HTTP | `API_tests/users_api_test.go` | `TestUsersDeactivate` |
+
+## API Test Classification
+
+### 1. True No-Mock HTTP
+
+- Primary evidence: [API_tests/setup_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/setup_test.go), [integration/integration_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/integration/integration_test.go), and [e2e_tests/setup_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/e2e_tests/setup_test.go)
+- Why this qualifies:
+  - real Gin engine bootstrapped
+  - requests sent through `ServeHTTP`
+  - real repositories and services wired
+  - live PostgreSQL pool required via `DATABASE_URL`
+  - no DI overrides or mocked providers in the main API/e2e harness
+- Files:
+  - `API_tests/*.go`
+  - `integration/integration_test.go`
+  - `e2e_tests/*.go`
+
+### 2. HTTP With Mocking
+
+- [internal/handler/customer_update_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/customer_update_test.go)
+  - `TestCustomerHandler_Update_NameOnlyPreservesEncryptedFields`
+  - `TestCustomerHandler_Update_ExplicitEmptyStringClearsField`
+  - HTTP request goes through Gin, but repo and encryption service are test doubles.
+- [internal/handler/report_validation_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/report_validation_test.go)
+  - `TestReportHandler_Create_RejectsUnsupportedReportType`
+  - `TestReportHandler_Create_AcceptsSupportedReportTypes`
+  - repo is a stub.
+- [internal/handler/coverage_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/coverage_test.go)
+  - `TestDownloadExport_AuditorDeniedForSensitive`
+  - `TestPostRestoreBackup_HappyPath`
+  - `TestPostRestoreBackup_ServiceError_RedirectsWithError`
+  - uses `sensitiveReportRepo` and `stubBackupService`.
+- [internal/handler/auditor_masking_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/auditor_masking_test.go)
+  - page handler requests with stub fulfillment/tier/customer/shipping repos.
+
+### 3. Non-HTTP (Unit / Integration Without HTTP)
+
+- DB-backed repositories:
+  - [internal/repository/repo_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/repository/repo_test.go)
+  - [internal/repository/repo_extra_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/repository/repo_extra_test.go)
+- Service tests:
+  - [internal/service/fulfillment_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/fulfillment_test.go)
+  - [internal/service/fixes_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/fixes_test.go)
+  - [internal/service/messaging_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/messaging_test.go)
+  - [internal/service/additional_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/additional_test.go)
+  - [internal/service/coverage_extra_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/coverage_extra_test.go)
+- Middleware/config/job tests:
+  - [internal/middleware/middleware_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/middleware/middleware_test.go)
+  - [internal/middleware/auth_revalidation_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/middleware/auth_revalidation_test.go)
+  - [internal/config/config_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/config/config_test.go)
+  - `internal/job/*_test.go`
+- Frontend:
+  - [static/js/app.test.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.test.js)
+
+## Mock Detection
+
+### What is mocked or stubbed
+
+- `recordingCustomerRepo`, `identityEncryptionSvc`
+  - where: [internal/handler/customer_update_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/customer_update_test.go)
+  - effect: request reaches handler, but persistence and crypto are replaced
+- `stubReportRepo`
+  - where: [internal/handler/report_validation_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/report_validation_test.go)
+  - effect: HTTP handler tested with fake export repository
+- `sensitiveReportRepo`, `stubBackupService`
+  - where: [internal/handler/coverage_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/coverage_test.go)
+  - effect: page/report and restore handlers tested against stubs
+- `stubFulfillRepo`, `stubTierRepo`, `stubCustRepo2`, `stubTimelineRepo`, `stubShippingRepo`, `stubExceptionRepo`
+  - where: [internal/handler/auditor_masking_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/auditor_masking_test.go)
+  - effect: page handler HTTP tests bypass real repositories
+- Extensive service-level stubs such as `stubUserRepo`, `stubTierRepo`, `stubReservationRepo`, `stubSendLogRepo`, `stubNotificationRepo`, `stubReportRepo`, `stubFulfillmentRepo`
+  - where: [internal/service/additional_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/additional_test.go), [internal/service/fixes_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/fixes_test.go), [internal/service/messaging_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/messaging_test.go), [internal/service/coverage_extra_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/service/coverage_extra_test.go)
+  - effect: unit tests only, not valid no-mock API coverage
+- Frontend spies/stubs
+  - where: [static/js/app.test.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.test.js)
+  - evidence: `vi.stubGlobal`, `vi.spyOn(...).mockImplementation(...)`
+  - effect: valid frontend unit testing, but still mocked browser globals
+
+### What was not found
+
+- No `jest.mock`
+- No `vi.mock`
+- No `sinon.stub`
+- No NestJS-style `overrideProvider` / `overrideGuard`
+
+## Coverage Summary
+
+- Total counted endpoints: **64**
+- Endpoints with HTTP tests: **64**
+- Endpoints with true no-mock HTTP tests: **64**
+- HTTP coverage: **100%**
+- True API coverage: **100%**
+
+Strict caveat:
+
+- This 100% figure applies only to the API endpoint inventory above.
+- It does **not** mean all server-rendered page routes are covered.
+- It does **not** mean the tests are uniformly deep. Several endpoints are exercised only through shallow success/status checks or only through one branch.
+
+## Unit Test Analysis
+
+### Backend Unit Tests
+
+Backend unit/non-HTTP test files found:
+
+- `internal/service/*.go` tests, including `fulfillment_test.go`, `messaging_test.go`, `bootstrap_test.go`, `fixes_test.go`, `shipping_address_update_test.go`, `coverage_extra_test.go`, `additional_test.go`
+- `internal/repository/repo_test.go`, `internal/repository/repo_extra_test.go`
+- `internal/handler/customer_update_test.go`, `internal/handler/report_validation_test.go`, `internal/handler/coverage_test.go`, `internal/handler/auditor_masking_test.go`, `internal/handler/message_filter_test.go`, `internal/handler/admin_health_test.go`
+- `internal/middleware/middleware_test.go`, `internal/middleware/auth_revalidation_test.go`
+- `internal/job/*.go` tests
+- `internal/config/config_test.go`
+
+Modules clearly covered:
+
+- Controllers/handlers:
+  - customer update flow
+  - report validation
+  - page report download/verify authorization
+  - page backup restore flow
+  - page fulfillment masking
+- Services:
+  - fulfillment state transitions
+  - messaging dispatch/retry/failure
+  - bootstrap user creation
+  - export service branches
+  - encryption
+- Repositories:
+  - tiers
+  - fulfillments
+  - customers
+  - report exports
+  - transactions and concurrency paths
+- Auth/guards/middleware:
+  - session auth
+  - page session auth
+  - role checks
+  - revalidation middleware
+
+Important backend modules not directly tested deeply enough at unit level:
+
+- `internal/handler/router.go`
+  - route registration itself is exercised indirectly, not asserted as an inventory contract
+- Many page POST handlers in `internal/handler/page_*.go`
+  - covered sparsely via page smoke tests, not by targeted handler tests
+- `internal/view/*`
+  - rendering correctness is mostly smoke-level, not component-level
+- `internal/service/backup.go`
+  - page restore handler is tested with stubs; backup/restore operational behavior is not deeply covered without mocks in unit tests
+
+### Frontend Unit Tests
+
+Frontend unit tests: **PRESENT**
+
+Frontend test files:
+
+- [static/js/app.test.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.test.js)
+
+Frameworks/tools detected:
+
+- Vitest via [static/js/package.json](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/package.json)
+- jsdom via [static/js/vitest.config.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/vitest.config.js)
+
+Components/modules covered:
+
+- [static/js/app.js](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/static/js/app.js)
+  - `confirmAction`
+  - `openModal`
+  - `closeModal`
+  - `validateTracking`
+  - modal backdrop click listener
+  - Escape-key listener
+  - tracking blur validation wiring
+  - flash auto-dismiss
+  - required-field submit guard
+  - dashboard auto-refresh
+
+Important frontend components/modules not tested:
+
+- Server-rendered templates under `internal/view/**`
+- Any page-level integration between rendered HTML and `static/js/app.js`
+- CSS and visual states under `static/css/**`
+- Auth page flows in a real browser environment
+
+Cross-layer observation:
+
+- Testing is backend-heavy.
+- Frontend unit coverage exists, but it is concentrated in a single module.
+- The repository has request-level page coverage, not browser-level end-to-end coverage.
+
+### Mandatory Frontend Verdict
+
+**Frontend unit tests: PRESENT**
+
+## API Observability Check
+
+Strong examples:
+
+- [API_tests/reports_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/reports_api_test.go)
+  - `TestReportsVerifyChecksum_AfterCompletion`
+  - shows request path, polls response state, asserts `verified=true`
+- [API_tests/fulfillments_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/fulfillments_api_test.go)
+  - `TestFulfillmentsRestore`
+  - exercises delete, 404 on get, restore, and get-after-restore
+- [e2e_tests/exports_e2e_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/e2e_tests/exports_e2e_test.go)
+  - `TestExceptionWorkflow`
+  - shows multi-step request/response state progression
+
+Weak examples:
+
+- [API_tests/exceptions_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/exceptions_api_test.go)
+  - `TestExceptionsList`
+  - only status check, no response-shape or content assertions
+- [API_tests/fulfillments_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/fulfillments_api_test.go)
+  - `TestFulfillmentsTimeline`
+  - only status check
+- [API_tests/admin_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/admin_api_test.go)
+  - `TestAdminDRDrillsList`
+  - checks top-level keys only
+- Multiple validation tests rely on "not 200" or "not 201" rather than exact status/body:
+  - `API_tests/customers_api_test.go::TestCustomersCreate_MissingName`
+  - `API_tests/settings_api_test.go::TestSettingsSet_MissingValue`
+  - `API_tests/admin_api_test.go::TestAdminDRDrillCreate_MissingScheduledFor`
+
+Verdict: **mixed; some endpoint tests are explicit, but a non-trivial subset is weakly observable**
+
+## Test Quality & Sufficiency
+
+### Success Paths
+
+- Strong overall
+- Core CRUD and lifecycle flows are exercised through real HTTP and real DB wiring
+- Evidence:
+  - `integration/integration_test.go::TestFulfillmentLifecycle`
+  - `API_tests/tiers_api_test.go::TestTiersSoftDeleteAndRestore`
+  - `API_tests/users_api_test.go::TestUsersUpdate`
+
+### Failure Cases
+
+- Good but uneven
+- Present for auth, RBAC, conflict/versioning, invalid IDs, invalid roles, invalid transitions, and not found flows
+- Evidence:
+  - `API_tests/auth_api_test.go::TestAuthLogin_WrongPassword`
+  - `API_tests/tiers_api_test.go::TestTiersUpdate_VersionConflict`
+  - `API_tests/reports_api_test.go::TestReportsSensitive_AuditorCreateForbidden`
+  - `API_tests/remediation_coverage_test.go::TestSendLog_MarkPrinted_ForbiddenForAuditor`
+
+### Edge Cases and Validation
+
+- Moderate
+- There are targeted checks for invalid report type, partial-update preservation, stale versions, and invalid UUIDs
+- Still weak in many list endpoints and some validation endpoints that do not assert exact error contracts
+
+### Auth and Permissions
+
+- Strong
+- RBAC is tested across admin, specialist, auditor, and unauthenticated contexts
+- Evidence:
+  - `e2e_tests/rbac_e2e_test.go`
+  - `API_tests/admin_api_test.go`
+  - `API_tests/message_templates_api_test.go`
+
+### Integration Boundaries
+
+- Strong on backend service/repository/DB boundary
+- Weak on actual browser/frontend-to-backend boundary
+- Page tests are request/HTML smoke tests, not browser-driven user interaction tests
+
+### Superficial vs meaningful assertions
+
+- Meaningful in lifecycle and export workflows
+- Superficial in several list/smoke tests
+- This prevents a top score despite complete endpoint hit coverage
+
+### `run_tests.sh` check
+
+- Result: **Docker-based, acceptable**
+- Evidence: [run_tests.sh](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/run_tests.sh) uses `docker compose` and `docker run`
+- Note: it optionally uses local `go tool cover` if available, but test execution itself is containerized
+
+## End-to-End Expectations
+
+- Expected for fullstack: real FE ↔ BE coverage
+- What exists:
+  - request-level backend E2E workflows in `e2e_tests/*.go`
+  - page-route HTML rendering smoke tests in `API_tests/pages_api_test.go` and `e2e_tests/pages_e2e_test.go`
+  - frontend unit tests for `static/js/app.js`
+- What is missing:
+  - no browser automation
+  - no test proving real JS-enhanced UI behavior against the backend in a browser session
+- Compensation level:
+  - backend API confidence is high
+  - frontend/browser confidence is materially lower
+
+## Unit Test Summary
+
+- Backend unit/non-HTTP testing: **substantial**
+- Frontend unit testing: **present but narrow**
+- Cross-layer balance: **backend-heavy**
+
+## Tests Check
+
+- Real API routing tested through bootstrapped Gin + real services/repos/DB: **yes**
+- Heavy DI/mock substitution inside true API suites: **no**
+- Handler HTTP tests with stubs also exist: **yes**
+- Browser-level fullstack E2E: **no**
+- Page-route smoke tests: **yes**
+
+## Test Coverage Score (0–100)
+
+**84/100**
+
+## Score Rationale
+
+- Full API endpoint inventory is covered by real HTTP tests against the real route graph and real DB-backed services.
+- RBAC, lifecycle, exports, and report flows are materially exercised.
+- Score is reduced because:
+  - page-route coverage is incomplete and mostly smoke-level
+  - frontend coverage is limited to one JS module
+  - there is no browser-driven FE ↔ BE test
+  - several tests assert only status/top-level shape instead of exact error/response contracts
+
+## Key Gaps
+
+- No browser-based end-to-end test for the fullstack UI
+- Many server-rendered page mutation routes are not directly exercised
+- Some endpoints are only shallowly asserted after the request reaches them
+- `PUT /api/v1/fulfillments/:id/shipping-address` is covered only through a conflict-path test, not a success-path API assertion
+- `POST /api/v1/admin/jobs/:name/run` is exercised with the scheduler absent in the test harness, so operational job-execution behavior is not proven
+
+## Confidence & Assumptions
+
+- Confidence: **high** for route inventory and API endpoint hit coverage
+- Confidence: **medium** for page-route sufficiency because the prompt required strict scoping and page coverage is outside the API percentage
+- Assumptions:
+  - Coverage percentages intentionally exclude server-rendered page endpoints to avoid conflating HTML routes with API coverage
+  - Helper functions that issue real HTTP requests count as endpoint coverage when invoked by named tests
+
+# README Audit
+
+## README Location
+
+- Found at [README.md](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md)
+
+## Hard Gate Failures
+
+- None
+
+## Hard Gate Evaluation
+
+### Formatting
+
+- Pass
+- Structure is readable and clearly sectioned.
+
+### Startup Instructions
+
+- Pass
+- Includes exact required command: `docker-compose up`
+- Evidence: `README.md`, section `2 — Startup`
+
+### Access Method
+
+- Pass
+- Includes URL and port: `http://localhost:8080/auth/login`
+- Backend/API examples use `http://localhost:8080/...`
+
+### Verification Method
+
+- Pass
+- Includes concrete curl verification steps for:
+  - `/healthz`
+  - login page render
+  - API login
+  - tier create/list
+  - admin health
+
+### Environment Rules
+
+- Pass
+- README explicitly states no `npm install`, `pip install`, `apt-get`, or manual setup is needed
+- Startup is Docker-contained
+
+### Demo Credentials
+
+- Pass
+- Auth clearly exists
+- README provides username/email/password for:
+  - Administrator
+  - Fulfillment Specialist
+  - Auditor
+- Caveat: specialist and auditor require one-time post-startup seeding via API calls, but the credentials are still documented
+
+## Engineering Quality
+
+### Tech stack clarity
+
+- Strong
+- Evidence: stack declared near top and directory breakdown is included
+
+### Architecture explanation
+
+- Moderate
+- README explains major folders and subsystems, but not request/data flow in depth
+
+### Testing instructions
+
+- Moderate
+- Test commands are documented
+- However there is a mismatch:
+  - README says `./run_tests.sh unit` runs `Domain + util + service tests only`
+  - actual script also includes `./internal/handler ./internal/repository ./internal/job`
+  - evidence: [README.md](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md), [run_tests.sh](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/run_tests.sh)
+
+### Security / roles
+
+- Strong
+- README documents roles, credentials, and some access/security controls
+
+### Workflows
+
+- Strong
+- Startup, verification, and scheduled jobs are all described
+
+### Presentation quality
+
+- Strong
+- Clean, readable, and sufficiently operational
+
+## High Priority Issues
+
+- `README.md` misstates the test layout under `1 — Static Review`: it says `tests/`, but the repo actually uses `API_tests/`, `e2e_tests/`, `integration/`, and package-local tests. This is documentation drift, not cosmetic.
+- `README.md` misdescribes the `unit` suite scope. The script does not run only domain/util/service tests; it also includes handler, repository, and job packages.
+
+## Medium Priority Issues
+
+- Specialist and auditor demo accounts are not actually "ready immediately"; they require manual post-startup seeding through curl. The README states this, but the split between bootstrap-ready and seed-required credentials increases setup friction.
+- Architecture explanation is folder-based rather than flow-based. A newcomer can start the app, but not quickly understand request lifecycle, page vs API separation, or audit/export boundaries from the README alone.
+
+## Low Priority Issues
+
+- `README.md` mixes `docker-compose up` with `docker compose down`. Operationally workable, but stylistically inconsistent.
+- The verification section is API-first and light on page/UI verification despite the project being declared fullstack.
+
+## README Verdict
+
+**PASS**
+
+Rationale:
+
+- All hard gates pass.
+- The document is operationally sufficient: startup, access, verification, Docker-only expectations, and role credentials are present.
+- Remaining issues are quality/drift issues, not hard-gate failures.
