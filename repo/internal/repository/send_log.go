@@ -76,13 +76,15 @@ func (r *pgSendLogRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Send
 
 func (r *pgSendLogRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.SendLogStatus, errMsg *string) error {
 	// Only increment attempt_count on FAILED transitions (not on re-queue).
-	// Set first_failed_at once on the first FAILED transition.
+	// Set first_failed_at once on the first FAILED transition. Casting $1 to
+	// varchar keeps the parameter type unambiguous under both assignment and
+	// comparison uses in the same statement.
 	_, err := r.pool.Exec(ctx,
 		`UPDATE send_logs
-		 SET status=$1,
+		 SET status=$1::varchar,
 		     error_message=$2,
-		     attempt_count = CASE WHEN $1='FAILED' THEN attempt_count+1 ELSE attempt_count END,
-		     first_failed_at = CASE WHEN $1='FAILED' AND first_failed_at IS NULL THEN NOW() ELSE first_failed_at END,
+		     attempt_count = CASE WHEN $1::varchar='FAILED' THEN attempt_count+1 ELSE attempt_count END,
+		     first_failed_at = CASE WHEN $1::varchar='FAILED' AND first_failed_at IS NULL THEN NOW() ELSE first_failed_at END,
 		     updated_at=NOW()
 		 WHERE id=$3`,
 		string(status), errMsg, id)

@@ -234,6 +234,32 @@ func (h *MessageHandler) MarkPrinted(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+type markFailedRequest struct {
+	Reason string `json:"reason"`
+}
+
+// PUT /api/v1/send-logs/:id/failed
+// Operator-reported failure transition for an offline handoff. Sets status to
+// FAILED (stamping first_failed_at on the first call) so the retry scheduler
+// can re-queue it on the configured cadence.
+func (h *MessageHandler) MarkFailed(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.ErrorResponse{Code: "VALIDATION_ERROR", Message: "invalid send log ID"})
+		return
+	}
+
+	var req markFailedRequest
+	_ = c.ShouldBindJSON(&req) // reason is optional
+
+	if err := h.messagingSvc.MarkFailed(c.Request.Context(), id, req.Reason); err != nil {
+		middleware.DomainErrorToHTTP(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // GET /api/v1/notifications
 func (h *MessageHandler) ListNotifications(c *gin.Context) {
 	actorID, _ := c.Get("userID")

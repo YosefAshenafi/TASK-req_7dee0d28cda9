@@ -21,6 +21,7 @@ type PageMessageHandler struct {
 	templateRepo repository.MessageTemplateRepository
 	sendLogRepo  repository.SendLogRepository
 	notifRepo    repository.NotificationRepository
+	messagingSvc service.MessagingService
 	auditSvc     service.AuditService
 }
 
@@ -40,6 +41,11 @@ func NewPageMessageHandler(
 
 func (h *PageMessageHandler) WithAudit(auditSvc service.AuditService) *PageMessageHandler {
 	h.auditSvc = auditSvc
+	return h
+}
+
+func (h *PageMessageHandler) WithMessagingService(svc service.MessagingService) *PageMessageHandler {
+	h.messagingSvc = svc
 	return h
 }
 
@@ -208,6 +214,28 @@ func (h *PageMessageHandler) PostMarkPrinted(c *gin.Context) {
 		return
 	}
 	redirectWithFlash(c, h.store, "/messages/handoff", "success", "Marked as printed.")
+}
+
+// PostMarkFailed transitions a QUEUED handoff send_log to FAILED so the retry
+// scheduler can re-queue it. Used by operators when an offline handoff cannot
+// be completed.
+func (h *PageMessageHandler) PostMarkFailed(c *gin.Context) {
+	ctx := pageRequestContextWithUser(c, h.store)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		redirectWithFlash(c, h.store, "/messages/handoff", "error", "Invalid send log ID.")
+		return
+	}
+	if h.messagingSvc == nil {
+		redirectWithFlash(c, h.store, "/messages/handoff", "error", "Messaging service unavailable.")
+		return
+	}
+	reason := c.PostForm("reason")
+	if err := h.messagingSvc.MarkFailed(ctx, id, reason); err != nil {
+		redirectWithFlash(c, h.store, "/messages/handoff", "error", "Mark failed: "+err.Error())
+		return
+	}
+	redirectWithFlash(c, h.store, "/messages/handoff", "success", "Marked as failed; queued for retry.")
 }
 
 func (h *PageMessageHandler) ListNotifications(c *gin.Context) {

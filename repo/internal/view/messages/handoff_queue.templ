@@ -40,8 +40,12 @@ templ HandoffQueue(pctx view.PageCtx, d HandoffData) {
 								<td>@components.SendLogStatusBadge(item.Status)</td>
 								<td class="text-sm text-muted">{ item.CreatedAt.Format("Jan 2, 2006 3:04 PM") }</td>
 								<td>
-									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/printed") }>
+									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/printed") } style="display:inline-block">
 										<button type="submit" class="btn btn-xs btn-primary">Mark as Printed</button>
+									</form>
+									<form method="POST" action={ templ.SafeURL("/messages/send-logs/" + item.ID.String() + "/failed") } style="display:inline-block;margin-left:6px">
+										<input type="hidden" name="reason" value="operator marked failed"/>
+										<button type="submit" class="btn btn-xs btn-danger">Mark as Failed</button>
 									</form>
 								</td>
 							</tr>

@@ -20,6 +20,10 @@ type MessagingService interface {
 	Dispatch(ctx context.Context, templateID uuid.UUID, recipientID uuid.UUID, extraChannels []domain.SendLogChannel, contextData map[string]any) (*domain.SendLog, error)
 	// MarkPrinted marks an SMS/EMAIL send_log as PRINTED (handoff queue).
 	MarkPrinted(ctx context.Context, id uuid.UUID) error
+	// MarkFailed transitions a QUEUED handoff log to FAILED, setting
+	// first_failed_at (if first failure) and next_retry_at for scheduler pickup.
+	// Used when an operator reports that an offline handoff attempt failed.
+	MarkFailed(ctx context.Context, id uuid.UUID, reason string) error
 	// RetryPending re-queues failed send_logs (up to maxAttempts).
 	RetryPending(ctx context.Context, maxAttempts int) (int, error)
 }
@@ -132,6 +136,50 @@ func (s *messagingService) MarkPrinted(ctx context.Context, id uuid.UUID) error 
 	}
 	if s.auditSvc != nil {
 		_ = s.auditSvc.Log(ctx, "send_logs", id, "PRINTED", nil, map[string]string{"status": "PRINTED"})
+	}
+	return nil
+}
+
+// MarkFailed transitions a QUEUED send_log into FAILED so the retry scheduler
+// can pick it up. Retry spacing is anchored at first_failed_at (T+10, T+20),
+// enforced by RetryPending. The call is idempotent: repeated failure reports
+// increment attempt_count via the repository UPDATE.
+func (s *messagingService) MarkFailed(ctx context.Context, id uuid.UUID, reason string) error {
+	before, err := s.sendLogRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if before.Status != domain.SendQueued && before.Status != domain.SendFailed {
+		return domain.NewValidationError("invalid state", map[string]string{
+			"status": "send_log must be QUEUED or FAILED to mark as failed",
+		})
+	}
+
+	var errMsg *string
+	if reason != "" {
+		errMsg = &reason
+	}
+	if err := s.sendLogRepo.UpdateStatus(ctx, id, domain.SendFailed, errMsg); err != nil {
+		return err
+	}
+
+	// Schedule the next retry T+10 after the first failure so the scheduler
+	// (which filters by next_retry_at <= now) can re-queue on cadence.
+	updated, err := s.sendLogRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if updated.FirstFailedAt != nil {
+		nextRetry := updated.FirstFailedAt.Add(time.Duration(updated.AttemptCount) * 10 * time.Minute)
+		_ = s.sendLogRepo.UpdateNextRetry(ctx, id, nextRetry)
+	}
+
+	if s.auditSvc != nil {
+		_ = s.auditSvc.Log(ctx, "send_logs", id, "FAILED", before, map[string]any{
+			"status":        "FAILED",
+			"attempt_count": updated.AttemptCount,
+			"error_message": reason,
+		})
 	}
 	return nil
 }

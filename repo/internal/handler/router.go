@@ -92,7 +92,9 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 		d.TimelineRepo, d.ShippingRepo, d.ExceptionRepo, d.EncSvc,
 	).WithAudit(d.AuditSvc)
 	pageException := NewPageExceptionHandler(d.Store, d.ExceptionRepo, d.ExEventRepo).WithExceptionService(d.ExceptionSvc)
-	pageMessage := NewPageMessageHandler(d.Store, d.TemplateRepo, d.SendLogRepo, d.NotifRepo).WithAudit(d.AuditSvc)
+	pageMessage := NewPageMessageHandler(d.Store, d.TemplateRepo, d.SendLogRepo, d.NotifRepo).
+		WithAudit(d.AuditSvc).
+		WithMessagingService(d.MessagingSvc)
 	pageReport := NewPageReportHandler(d.Store, d.ReportRepo, d.ExportSvc).WithAudit(d.AuditSvc)
 	pageAudit := NewPageAuditHandler(d.Store, d.AuditRepo)
 	pageSettings := NewPageSettingsHandler(d.Store, d.SettingRepo, d.BlackoutRepo).WithAudit(d.AuditSvc)
@@ -169,6 +171,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOrSpecPage.GET("/messages/send-logs", pageMessage.ShowSendLogs)
 	adminOrSpecPage.GET("/messages/handoff", pageMessage.ShowHandoffQueue)
 	adminOrSpecPage.POST("/messages/send-logs/:id/printed", pageMessage.PostMarkPrinted)
+	adminOrSpecPage.POST("/messages/send-logs/:id/failed", pageMessage.PostMarkFailed)
 
 	// Notifications
 	authedPage.GET("/notifications", pageMessage.ListNotifications)
@@ -280,6 +283,7 @@ func RegisterRoutes(r *gin.Engine, d Deps) {
 	adminOnly.DELETE("/message-templates/:id", messages.DeleteTemplate)
 	adminOrSpecialist.GET("/send-logs", messages.ListSendLogs)
 	adminOrSpecialist.PUT("/send-logs/:id/printed", messages.MarkPrinted)
+	adminOrSpecialist.PUT("/send-logs/:id/failed", messages.MarkFailed)
 	// Per-user notifications — every authenticated role has its own inbox.
 	authed.GET("/notifications", messages.ListNotifications)
 	authed.PUT("/notifications/:id/read", messages.MarkNotificationRead)
