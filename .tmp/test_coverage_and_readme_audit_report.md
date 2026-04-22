@@ -7,7 +7,7 @@
 - Backend HTTP surface found:
 - `63` versioned API endpoints under `/api/v1` in [internal/handler/router.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/router.go:228).
 - `1` auxiliary backend endpoint `GET /healthz` in [cmd/server/main.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/cmd/server/main.go:124).
-- `71` server-rendered page routes in [internal/handler/router.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/router.go:111).
+- `73` server-rendered page routes in [internal/handler/router.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/internal/handler/router.go:110) (lines 110–222, all `GET/POST/PUT/DELETE` registrations).
 - The mandatory API mapping table below covers `/api/v1/*` plus `GET /healthz`. Page routes are assessed separately under fullstack expectations because the prompt’s coverage criteria are API-centric.
 
 ## Backend Endpoint Inventory
@@ -113,7 +113,7 @@
 
 | Endpoint | Covered | Test type | Test files | Evidence |
 |---|---|---|---|---|
-| `GET /healthz` | yes | true no-mock HTTP | `API_tests/auth_api_test.go`, `integration/integration_test.go` | `TestHealthz` at [API_tests/auth_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/auth_api_test.go:11), `TestHealthz` at [integration/integration_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/integration/integration_test.go:226) |
+| `GET /healthz` | yes (stubbed) | stubbed HTTP (not production handler) | `API_tests/auth_api_test.go`, `integration/integration_test.go` | `TestHealthz` at [API_tests/auth_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/auth_api_test.go:11), `TestHealthz` at [integration/integration_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/integration/integration_test.go:226). Note: the real production handler at [cmd/server/main.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/cmd/server/main.go:126-141) is replaced by a minimal stub at [API_tests/setup_test.go:122](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/setup_test.go:122) and [e2e_tests/setup_test.go:117](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/e2e_tests/setup_test.go:117); the production implementation is therefore not exercised by these tests. |
 | `POST /api/v1/auth/login` | yes | true no-mock HTTP | `API_tests/auth_api_test.go` | `TestAuthLogin_Success`, `TestAuthLogin_WrongPassword`, `TestAuthLogin_MissingBody` at [API_tests/auth_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/auth_api_test.go:20) |
 | `POST /api/v1/auth/logout` | yes | true no-mock HTTP | `API_tests/auth_api_test.go`, `API_tests/audit_fixes_api_test.go` | `TestAuthLogout` at [API_tests/auth_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/auth_api_test.go:66), `TestLogout_ClearsBothCookies` at [API_tests/audit_fixes_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/audit_fixes_api_test.go:115) |
 | `GET /api/v1/auth/me` | yes | true no-mock HTTP | `API_tests/auth_api_test.go`, `API_tests/notifications_api_test.go` | `TestAuthMe_Authenticated`, `TestAuthMe_Unauthenticated` at [API_tests/auth_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/auth_api_test.go:52); `seedNotificationForAdmin` at [API_tests/notifications_api_test.go](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/API_tests/notifications_api_test.go:13) |
@@ -315,7 +315,7 @@
 
 ## High Priority Issues
 
-- Fullstack verification is operationally strong, but README overstates test location accuracy. It says API/integration/E2E tests live in `tests/` in [README.md](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md:19); actual directories are `API_tests/`, `e2e_tests/`, `integration/`, and `unit_tests/`.
+- Fullstack verification is operationally strong. [README.md line 19](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md:19) describes the service layer ("Service layer (auth, fulfillment, messaging, audit, backup) → `internal/service/`"); the API/integration/E2E test directories are correctly listed one row down at [README.md line 25](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md:25) as `API_tests/`, `e2e_tests/`, `integration/`, and `unit_tests/` — so the README test paths do match the on-disk layout.
 - Demo credentials are not uniformly ready after `docker-compose up`. Only the administrator is auto-seeded; specialist and auditor require manual post-start API seeding in [README.md](/Users/yosef/Documents/Projects/TASK-req_7dee0d28cda9/repo/README.md:54). This is usable, but it weakens the “demo-ready” experience for a strict reviewer.
 
 ## Medium Priority Issues

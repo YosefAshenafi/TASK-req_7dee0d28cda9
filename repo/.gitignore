@@ -12,6 +12,10 @@ fulfillops
 # Test output
 *.test
 coverage.out
+.coverage/
+
+# Node dependencies (frontend test tooling)
+node_modules/
 
 # Exports and backups (runtime data)
 exports/

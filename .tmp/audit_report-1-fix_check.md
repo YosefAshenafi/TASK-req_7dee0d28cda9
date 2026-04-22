@@ -125,19 +125,20 @@ Any failing check sets its value to `"error: ..."` and flips `overall` to `"degr
 - New verdict: **Pass**
 
 **What changed:**
-`internal/repository/send_log.go:137–145` — `GetRetryable` now queries:
-```sql
-WHERE status IN ('QUEUED','FAILED') AND next_retry_at IS NOT NULL AND next_retry_at <= $1
-```
-Previously only `FAILED` rows were scanned, so `QUEUED` offline send logs (SMS/Email dispatched via `Dispatch()`) were never picked up for retry. The new query includes both status values, aligning the retry loop with the `QUEUED` rows that `Dispatch()` creates.
+The failed-send lifecycle is now defined explicitly as `QUEUED → FAILED → (retry) → FAILED → …`, with the retry scheduler scanning only `FAILED` rows and a new service transition that promotes `QUEUED` handoff rows into `FAILED` so they become retryable.
 
-`internal/service/messaging.go:98–152` — `RetryPending` adds a clarifying comment describing the QUEUED+FAILED lifecycle. Terminal `FAILED` transitions are not counted in the retried total (preserving the original semantics verified by `TestRetryPending_MaxAttemptsMarksFailed`).
+`internal/service/messaging.go:143–185` — new `MarkFailed(ctx, id, reason)` method. It accepts a send_log in `QUEUED` or `FAILED` state, calls `sendLogRepo.UpdateStatus` to move it to `FAILED` (which stamps `first_failed_at` and increments `attempt_count` per the repository), then schedules `next_retry_at = first_failed_at + attempt_count * 10m` via `UpdateNextRetry`. This is the explicit production code path that transitions queued offline send logs into the retryable `FAILED` state the audit flagged as missing.
 
-**Evidence:** `internal/repository/send_log.go:141–145`, `internal/service/messaging.go:98`.
+`internal/service/messaging.go:187–225` — `RetryPending` is kept scoped to `FAILED` rows only, with a comment documenting the contract: "Only FAILED rows consume a retry slot; QUEUED rows are handoff state and are not touched here." It enforces the 30-minute wall-clock window anchored at `first_failed_at`, caps at `maxAttempts=3`, clears `next_retry_at` on terminal rows, and otherwise re-queues with spacing T+10 / T+20.
+
+`internal/repository/send_log.go:172–184` — `GetRetryable` remains `WHERE status='FAILED' AND next_retry_at IS NOT NULL AND next_retry_at <= $1`. The header comment makes the intent explicit: "Only FAILED rows consume retry slots. QUEUED rows remain in the handoff queue until an operator picks them up or explicitly fails them." The inconsistency flagged in the audit (Dispatch creates QUEUED, retry only picks FAILED) is resolved by providing `MarkFailed` as the bridge — not by widening the retry scan.
+
+**Evidence:** `internal/service/messaging.go:23-28` (interface), `internal/service/messaging.go:143-185` (`MarkFailed`), `internal/service/messaging.go:187-225` (`RetryPending`), `internal/repository/send_log.go:172-184` (`GetRetryable`).
 
 **Tests added:** `internal/service/fixes_test.go`:
-- `TestRetryPending_QueuedRowsRetried` — a QUEUED SMS with elapsed `next_retry_at` → retried count = 1, status re-queued, new `next_retry_at` set.
-- `TestRetryPending_MaxAttemptsMarksFailed` — QUEUED row with `AttemptCount == maxAttempts` → retried count = 0, status marked `FAILED`.
+- `TestRetryPending_FailedRowsRetried` — a FAILED row with elapsed `next_retry_at` → retried count = 1, status re-queued, new `next_retry_at` set.
+- `TestRetryPending_MaxAttemptsClears` — FAILED row with `AttemptCount == maxAttempts` → retried count = 0, `next_retry_at` cleared.
+- `TestRetryPending_WindowExpiredClears` — FAILED row past the 30-minute window → `next_retry_at` cleared; retried count = 0.
 
 ---
 
